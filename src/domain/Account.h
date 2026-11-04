@@ -1,19 +1,28 @@
 #pragma once
 #include <QString>
 
-enum class AccountRole { Common, Administrator, Principal };
+enum class AccountRole {
+    Common,
+    Administrator,
+    Principal
+};
 
 inline QString accountRoleLabel(AccountRole role) {
     switch (role) {
-    case AccountRole::Principal: return QStringLiteral("Principal");
-    case AccountRole::Administrator: return QStringLiteral("Administrador");
-    default: return QStringLiteral("Comum");
+    case AccountRole::Principal:
+        return QStringLiteral("Principal");
+    case AccountRole::Administrator:
+        return QStringLiteral("Administrador");
+    default:
+        return QStringLiteral("Comum");
     }
 }
 
 inline AccountRole accountRoleFromValue(const QString &value) {
-    if (value == QLatin1String("principal")) return AccountRole::Principal;
-    if (value == QLatin1String("admin")) return AccountRole::Administrator;
+    if (value == QLatin1String("principal"))
+        return AccountRole::Principal;
+    if (value == QLatin1String("admin"))
+        return AccountRole::Administrator;
     return AccountRole::Common;
 }
 
@@ -25,5 +34,12 @@ struct AccountSummary {
     bool mustChangePassword = false;
 };
 
-enum class AccountFilter { Active, Inactive, All };
-enum class InitialPasswordMode { Temporary, Assisted };
+enum class AccountFilter {
+    Active,
+    Inactive,
+    All
+};
+enum class InitialPasswordMode {
+    Temporary,
+    Assisted
+};

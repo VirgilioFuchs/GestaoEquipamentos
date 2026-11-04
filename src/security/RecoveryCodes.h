@@ -9,4 +9,4 @@ constexpr int SetSize = 10;
 QStringList generate();
 QString normalize(const QString &code);
 QString verifier(const QString &databaseUuid, qint64 generation, const QString &normalized);
-}
+} // namespace recovery_codes

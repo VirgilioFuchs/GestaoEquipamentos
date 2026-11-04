@@ -7,14 +7,22 @@ class QLabel;
 class QLineEdit;
 class QPushButton;
 class QStringListModel;
-// Campo de pesquisa rápida sobre um catálogo: sugestões compactas, validação curta e botão de cadastro sempre disponível.
-// A seleção é sempre por ID; o texto digitado só identifica um cadastro quando corresponde a exatamente um nome.
+// Campo de pesquisa rápida sobre um catálogo: sugestões compactas, validação curta e botão de cadastro sempre
+// disponível. A seleção é sempre por ID; o texto digitado só identifica um cadastro quando corresponde a exatamente um
+// nome.
 class QuickPickField : public QWidget {
     Q_OBJECT
 public:
-    struct Entry { qint64 id = 0; QString name; QString label; };
-    struct Messages { QString found, partial, notFound, ambiguous, required; };
-    QuickPickField(const QString &placeholder, const QString &addText, const Messages &messages, QWidget *parent = nullptr);
+    struct Entry {
+        qint64 id = 0;
+        QString name;
+        QString label;
+    };
+    struct Messages {
+        QString found, partial, notFound, ambiguous, required;
+    };
+    QuickPickField(const QString &placeholder, const QString &addText, const Messages &messages,
+                   QWidget *parent = nullptr);
     void setEntries(const QVector<Entry> &entries);
     void select(qint64 id);
     void choose(const QString &label);
@@ -28,8 +36,10 @@ public:
 signals:
     void selectionChanged();
     void addRequested(const QString &text);
+
 protected:
     bool eventFilter(QObject *watched, QEvent *event) override;
+
 private:
     void resolve();
     void refreshSuggestions();

@@ -63,21 +63,42 @@ GestaoEquipamentos/
 - Compilador C++17
 - libsodium e QtKeychain (ou resolução automática conforme plataforma/configuração)
 
-### Build (preset de desenvolvimento)
+> **Windows:** use o kit **Qt MinGW 64-bit** (pelo Qt Creator ou pelo atalho de terminal do kit no menu Iniciar).
+> Um terminal comum não encontra o Ninja nem o compilador.
+
+### Build da aplicação
+
+O build padrão compila **apenas** a aplicação e a ferramenta administrativa — os testes ficam fora (`EXCLUDE_FROM_ALL`).
 
 ```bash
-cmake --preset dev
+cmake --preset dev        # ou: cmake --preset release
 cmake --build --preset dev
-ctest --preset dev
 ./build/dev/GestaoEquipamentos
 ```
 
-### Sem testes
+### Testes (sob demanda)
+
+Os testes usam **Qt Test** com um executável por suíte, registrados no CTest. Para compilar e rodar tudo:
 
 ```bash
-cmake --preset dev -DBUILD_TESTING=OFF
-cmake --build --preset dev
-./build/dev/GestaoEquipamentos
+cmake --build --preset dev --target check
+```
+
+Para rodar uma suíte específica depois de compilada:
+
+```bash
+cmake --build --preset dev --target store_tests
+ctest --preset dev -R store_tests
+```
+
+O preset `release` desliga os testes por completo (`BUILD_TESTING=OFF`).
+
+### Formatação do código
+
+O estilo C++ está definido em `.clang-format` (4 espaços, 120 colunas). Para formatar:
+
+```bash
+clang-format -i src/**/*.cpp src/**/*.h tests/*.cpp tests/*.h
 ```
 
 ## Como funciona

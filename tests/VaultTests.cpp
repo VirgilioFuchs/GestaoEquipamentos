@@ -28,12 +28,20 @@ private slots:
             vault.write(first, secretA);
         } catch (const VaultError &e) {
             const QString reason = QString("Cofre do sistema indisponível: ") + e.what();
-            if (qEnvironmentVariable("GESTAOEQUIPAMENTOS_REQUIRE_VAULT") == "1") QFAIL(qPrintable(reason));
+            if (qEnvironmentVariable("GESTAOEQUIPAMENTOS_REQUIRE_VAULT") == "1")
+                QFAIL(qPrintable(reason));
             QSKIP(qPrintable(reason));
         }
         struct Cleanup {
-            KeychainSecretVault &vault; QStringList keys;
-            ~Cleanup() { for (const auto &key : keys) try { vault.remove(key); } catch (const VaultError &) {} }
+            KeychainSecretVault &vault;
+            QStringList keys;
+            ~Cleanup() {
+                for (const auto &key : keys)
+                    try {
+                        vault.remove(key);
+                    } catch (const VaultError &) {
+                    }
+            }
         } cleanup{vault, {first, second}};
         QCOMPARE(vault.read(first), secretA);
         vault.write(second, secretB);

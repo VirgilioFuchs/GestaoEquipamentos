@@ -21,8 +21,10 @@ public:
     HistoryFilter appliedFilter() const { return applied; }
     HistoryFilter draftFilter() const { return draft; }
     int queryCount() const { return queries; }
+
 protected:
     bool eventFilter(QObject *watched, QEvent *event) override;
+
 private:
     void fitDetailsColumn();
     void applyFilters();
@@ -53,6 +55,7 @@ private:
     QComboBox *period, *notebook, *location, *account, *action;
     QDateEdit *from, *to;
     QLineEdit *person;
-    QLabel *dateError, *personHelp, *optionsError, *pending, *result, *summary, *truncatedNotice, *emptyTitle, *emptyBody;
+    QLabel *dateError, *personHelp, *optionsError, *pending, *result, *summary, *truncatedNotice, *emptyTitle,
+        *emptyBody;
     QTableWidget *events;
 };

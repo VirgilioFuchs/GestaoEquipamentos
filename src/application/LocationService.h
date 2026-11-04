@@ -12,6 +12,7 @@ public:
     int notebooksAt(qint64 locationId) const;
     void softDelete(const Session &session, qint64 locationId);
     void rename(const Session &session, const Location &expected, const QString &name);
+
 private:
     LocalDatabase &database;
     AuthService &auth;

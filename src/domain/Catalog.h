@@ -2,7 +2,11 @@
 #include <QString>
 #include "domain/Notebook.h"
 
-enum class CatalogFilter { Active, Inactive, All };
+enum class CatalogFilter {
+    Active,
+    Inactive,
+    All
+};
 struct Person {
     qint64 id = 0;
     QString name;

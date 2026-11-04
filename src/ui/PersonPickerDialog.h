@@ -11,15 +11,20 @@ class QLineEdit;
 class QTableWidget;
 class QLabel;
 class QPushButton;
-// D-01: seleção de pessoa por id (homônimos são linhas distintas; nunca deduplicar).
+// Seleção de pessoa por id (homônimos são linhas distintas; nunca deduplicar).
 // Movement lista só ativas e permite cadastro rápido; Query (filtro dos logs) lista também inativas e não cadastra.
 class PersonPickerDialog : public QDialog {
     Q_OBJECT
 public:
-    enum class Mode { Movement, Query };
-    PersonPickerDialog(PeopleService &people, std::function<Session()> currentSession, QWidget *parent = nullptr, Mode mode = Mode::Movement);
+    enum class Mode {
+        Movement,
+        Query
+    };
+    PersonPickerDialog(PeopleService &people, std::function<Session()> currentSession, QWidget *parent = nullptr,
+                       Mode mode = Mode::Movement);
     int exec() override;
     std::optional<Person> selectedPerson() const;
+
 private:
     PeopleService &people;
     Mode mode;

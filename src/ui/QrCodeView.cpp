@@ -14,12 +14,15 @@ void QrCodeView::setContent(const QByteArray &utf8) {
     size = code.getSize();
     modules.fill(false, size * size);
     for (int y = 0; y < size; ++y)
-        for (int x = 0; x < size; ++x) modules[y * size + x] = code.getModule(x, y);
+        for (int x = 0; x < size; ++x)
+            modules[y * size + x] = code.getModule(x, y);
     resizeToHint();
 }
 
 void QrCodeView::clear() {
-    modules.fill(false); modules.clear(); size = 0;
+    modules.fill(false);
+    modules.clear();
+    size = 0;
     resizeToHint();
 }
 
@@ -40,7 +43,8 @@ int QrCodeView::devicePixelsPerModule() const {
 }
 
 QSize QrCodeView::sizeHint() const {
-    if (isEmpty()) return {MinimumSide, MinimumSide};
+    if (isEmpty())
+        return {MinimumSide, MinimumSide};
     const int device = (size + 2 * QuietZone) * devicePixelsPerModule();
     const int logical = int(std::ceil(device / devicePixelRatioF()));
     return {logical, logical};
@@ -49,7 +53,8 @@ QSize QrCodeView::sizeHint() const {
 void QrCodeView::paintEvent(QPaintEvent *) {
     QPainter painter(this);
     painter.fillRect(rect(), Qt::white);
-    if (isEmpty()) return;
+    if (isEmpty())
+        return;
     const int scale = devicePixelsPerModule();
     const int side = (size + 2 * QuietZone) * scale;
     QImage image(side, side, QImage::Format_RGB32);
@@ -59,7 +64,8 @@ void QrCodeView::paintEvent(QPaintEvent *) {
             if (modules[y * size + x])
                 for (int dy = 0; dy < scale; ++dy) {
                     auto *line = reinterpret_cast<QRgb *>(image.scanLine((y + QuietZone) * scale + dy));
-                    for (int dx = 0; dx < scale; ++dx) line[(x + QuietZone) * scale + dx] = qRgb(0, 0, 0);
+                    for (int dx = 0; dx < scale; ++dx)
+                        line[(x + QuietZone) * scale + dx] = qRgb(0, 0, 0);
                 }
     image.setDevicePixelRatio(devicePixelRatioF());
     painter.setRenderHint(QPainter::SmoothPixmapTransform, false);

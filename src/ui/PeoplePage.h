@@ -13,6 +13,7 @@ public:
     void reload();
     std::function<void()> onExpired;
     std::function<void()> onChanged;
+
 private:
     PeopleService &people;
     const Session &session;

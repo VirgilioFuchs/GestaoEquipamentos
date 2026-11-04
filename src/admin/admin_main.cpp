@@ -22,12 +22,16 @@
 namespace {
 int usage() {
     std::fputs("Uso: GestaoEquipamentosAdmin [--version] [--test-profile]\n"
-               "As requisições JSON são lidas da entrada padrão, uma por linha. Nenhum caminho de banco é aceito.\n", stderr);
+               "As requisições JSON são lidas da entrada padrão, uma por linha. Nenhum caminho de banco é aceito.\n",
+               stderr);
     return 2;
 }
 void writeOut(const QByteArray &bytes) {
-    QFile out; out.open(stdout, QIODevice::WriteOnly);
-    out.write(bytes); out.write("\n"); out.flush();
+    QFile out;
+    out.open(stdout, QIODevice::WriteOnly);
+    out.write(bytes);
+    out.write("\n");
+    out.flush();
 }
 
 // A leitura bloqueante fica numa thread própria para que cada espera tenha prazo. Usa o descritor bruto
@@ -35,7 +39,9 @@ void writeOut(const QByteArray &bytes) {
 class StdinLines {
 public:
     StdinLines() : state(std::make_shared<State>()) {
-        std::thread([shared = state] { pump(*shared); }).detach();
+        std::thread([shared = state] {
+            pump(*shared);
+        }).detach();
     }
     std::optional<QByteArray> next(int timeoutMs) {
         State &s = *state;
@@ -44,11 +50,13 @@ public:
             return s.ended || s.buffer.contains('\n') || s.buffer.size() > AdminProtocol::MaxRequestBytes;
         });
         const qsizetype newline = s.buffer.indexOf('\n');
-        if (newline >= 0) return take(s.buffer, newline, newline + 1);
+        if (newline >= 0)
+            return take(s.buffer, newline, newline + 1);
         if (s.buffer.size() > AdminProtocol::MaxRequestBytes || (s.ended && !s.buffer.isEmpty()))
             return take(s.buffer, s.buffer.size(), s.buffer.size());
         return std::nullopt;
     }
+
 private:
     struct State {
         std::mutex mutex;
@@ -58,7 +66,8 @@ private:
     };
     static QByteArray take(QByteArray &buffer, qsizetype length, qsizetype consumed) {
         QByteArray line = buffer.left(length);
-        if (line.endsWith('\r')) line.chop(1);
+        if (line.endsWith('\r'))
+            line.chop(1);
         std::fill(buffer.begin(), buffer.begin() + consumed, '\0');
         buffer.remove(0, consumed);
         return line;
@@ -68,20 +77,27 @@ private:
         for (;;) {
 #ifdef Q_OS_WIN
             DWORD count = 0;
-            const bool ok = ReadFile(GetStdHandle(STD_INPUT_HANDLE), chunk.data(), DWORD(chunk.size()), &count, nullptr) && count > 0;
+            const bool ok =
+                ReadFile(GetStdHandle(STD_INPUT_HANDLE), chunk.data(), DWORD(chunk.size()), &count, nullptr) &&
+                count > 0;
 #else
             const auto count = ::read(STDIN_FILENO, chunk.data(), size_t(chunk.size()));
             const bool ok = count > 0;
 #endif
             std::lock_guard<std::mutex> lock(s.mutex);
-            if (!ok) { crypto::wipe(chunk); s.ended = true; s.changed.notify_all(); return; }
+            if (!ok) {
+                crypto::wipe(chunk);
+                s.ended = true;
+                s.changed.notify_all();
+                return;
+            }
             s.buffer.append(chunk.constData(), qsizetype(count));
             s.changed.notify_all();
         }
     }
     std::shared_ptr<State> state;
 };
-}
+} // namespace
 
 int main(int argc, char *argv[]) {
     QCoreApplication app(argc, argv);
@@ -89,11 +105,17 @@ int main(int argc, char *argv[]) {
     bool testProfile = false;
     const auto args = app.arguments();
     for (int i = 1; i < args.size(); ++i) {
-        if (args[i] == "--version") { writeOut("GestaoEquipamentosAdmin protocolo " + QByteArray::number(AdminProtocol::Version)); return 0; }
-        if (args[i] == "--test-profile") testProfile = true;
-        else return usage();
+        if (args[i] == "--version") {
+            writeOut("GestaoEquipamentosAdmin protocolo " + QByteArray::number(AdminProtocol::Version));
+            return 0;
+        }
+        if (args[i] == "--test-profile")
+            testProfile = true;
+        else
+            return usage();
     }
-    if (testProfile) QStandardPaths::setTestModeEnabled(true);
+    if (testProfile)
+        QStandardPaths::setTestModeEnabled(true);
     try {
         crypto::initialize();
         StdinLines lines;
@@ -102,9 +124,14 @@ int main(int argc, char *argv[]) {
         AuthService auth(database, hasher);
         KeychainSecretVault vault(vaultServiceName(DataProfile::Operational));
         RecoveryService recovery(database, auth, vault, SessionClock::system());
-        return AdminProtocol::serve([&](int timeoutMs) { return lines.next(timeoutMs); }, writeOut, auth, recovery);
+        return AdminProtocol::serve(
+            [&](int timeoutMs) {
+                return lines.next(timeoutMs);
+            },
+            writeOut, auth, recovery);
     } catch (const std::exception &) {
-        writeOut(R"({"protocol":1,"status":"error","code":"internal_error","message":"Não foi possível abrir o banco local."})");
+        writeOut(
+            R"({"protocol":1,"status":"error","code":"internal_error","message":"Não foi possível abrir o banco local."})");
         return 1;
     }
 }

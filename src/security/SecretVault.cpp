@@ -14,13 +14,17 @@ void runJob(QKeychain::Job &job) {
     job.setInsecureFallback(false);
     bool finished = false;
     QEventLoop loop;
-    QObject::connect(&job, &QKeychain::Job::finished, &loop, [&] { finished = true; loop.quit(); });
+    QObject::connect(&job, &QKeychain::Job::finished, &loop, [&] {
+        finished = true;
+        loop.quit();
+    });
     job.start();
-    if (!finished) loop.exec();
+    if (!finished)
+        loop.exec();
     if (job.error() != QKeychain::NoError)
         throw VaultError("Cofre do sistema: " + job.errorString());
 }
-}
+} // namespace
 
 KeychainSecretVault::KeychainSecretVault(QString service) : service(std::move(service)) {}
 
@@ -45,6 +49,8 @@ void KeychainSecretVault::remove(const QString &key) {
 }
 
 QString vaultServiceName(DataProfile profile) {
-    if (QStandardPaths::isTestModeEnabled()) return QStringLiteral("GestaoEquipamentos-test");
-    return profile == DataProfile::Demo ? QStringLiteral("GestaoEquipamentos-demo") : QStringLiteral("GestaoEquipamentos");
+    if (QStandardPaths::isTestModeEnabled())
+        return QStringLiteral("GestaoEquipamentos-test");
+    return profile == DataProfile::Demo ? QStringLiteral("GestaoEquipamentos-demo")
+                                        : QStringLiteral("GestaoEquipamentos");
 }

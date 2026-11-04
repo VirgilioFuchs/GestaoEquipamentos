@@ -17,8 +17,10 @@ public:
     bool isEmpty() const { return modules.isEmpty(); }
     QSize sizeHint() const override;
     QSize minimumSizeHint() const override { return sizeHint(); }
+
 protected:
     void paintEvent(QPaintEvent *event) override;
+
 private:
     int devicePixelsPerModule() const;
     void resizeToHint();

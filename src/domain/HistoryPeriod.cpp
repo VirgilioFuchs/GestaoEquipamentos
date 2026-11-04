@@ -2,7 +2,8 @@
 #include <stdexcept>
 
 PeriodRange resolvePeriod(PeriodPreset preset, QDate from, QDate to, const QDateTime &nowUtc, const QTimeZone &zone) {
-    if (preset == PeriodPreset::All) return {};
+    if (preset == PeriodPreset::All)
+        return {};
     const QDate today = nowUtc.toTimeZone(zone).date();
     if (preset != PeriodPreset::Custom) {
         to = today;
@@ -15,6 +16,8 @@ PeriodRange resolvePeriod(PeriodPreset preset, QDate from, QDate to, const QDate
 QString searchFold(const QString &text) {
     QString result;
     const QString normalized = text.normalized(QString::NormalizationForm_D);
-    for (const QChar c : normalized) if (c.category() != QChar::Mark_NonSpacing) result.append(c);
+    for (const QChar c : normalized)
+        if (c.category() != QChar::Mark_NonSpacing)
+            result.append(c);
     return result.toCaseFolded().simplified();
 }
