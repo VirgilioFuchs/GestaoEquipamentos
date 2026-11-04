@@ -94,8 +94,20 @@ python3 tools/admin_account.py bootstrap
 - Rode com o **mesmo usuário do sistema operacional** que usa o aplicativo: o script grava no mesmo banco local
   e não pergunta caminho de banco.
 - Informe o nome de usuário e a senha (digitação oculta, com confirmação; 8 a 128 caracteres).
-- O script procura o `GestaoEquipamentosAdmin` ao lado dele, em `build/release` e em `build/dev`.
+- O script procura o `GestaoEquipamentosAdmin` ao lado dele, em `build/release`, `build/dev` e em subpastas de `build/` (layout do Qt Creator).
   Em outro local, use `--helper <caminho do executável>`.
+- Se aparecer "Utilitário GestaoEquipamentosAdmin não encontrado", compile o alvo admin explicitamente:
+
+  ```bash
+  cmake --build --preset release --target GestaoEquipamentosAdmin
+  ```
+
+  e rode com `--helper`, por exemplo no Windows:
+
+  ```bash
+  py -3 tools/admin_account.py bootstrap --helper build\\release\\GestaoEquipamentosAdmin.exe
+  ```
+
 - Só funciona uma vez: se a principal já existir, a operação é recusada. Para trocar a senha, use a recuperação.
 
 Depois disso, abra o `GestaoEquipamentos` e entre com a conta principal. Ela cria as demais contas
