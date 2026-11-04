@@ -57,72 +57,162 @@ GestaoEquipamentos/
 
 ### Pré-requisitos
 
-- Qt 6.4+ (Widgets e SQL com driver QSQLITE)
-- CMake 3.21+
-- Ninja
-- Compilador C++17
-- libsodium e QtKeychain (ou resolução automática conforme plataforma/configuração)
+- Qt 6.4+ (Widgets e SQL com driver QSQLITE; Qt Test só para os testes)
+- CMake 3.21+ e Ninja
+- Compilador C++17 — no Windows, **obrigatoriamente MinGW 64-bit** (o kit MSVC não é suportado)
+- Python 3 (só para o script da conta principal)
+- libsodium e QtKeychain: no Windows são baixadas/compiladas automaticamente; no Linux use os pacotes do sistema
 
-> **Windows:** use o kit **Qt MinGW 64-bit** (pelo Qt Creator ou pelo atalho de terminal do kit no menu Iniciar).
-> Um terminal comum não encontra o Ninja nem o compilador.
+Não é preciso servidor de banco, Docker nem credenciais: o banco é um arquivo SQLite local.
 
-### Build da aplicação
+### Windows com Qt Creator (recomendado)
+
+1. No Qt Maintenance Tool, instale **Qt 6.x → MinGW 64-bit** e, em *Developer and Designer Tools*, **MinGW 64-bit**, **CMake** e **Ninja**.
+2. No Qt Creator: **Arquivo → Abrir arquivo ou projeto** → `CMakeLists.txt`.
+3. Selecione o kit **Desktop Qt 6.x MinGW 64-bit** e clique em **Configurar projeto**.
+4. Escolha *Debug* ou *Release* no seletor do canto inferior esquerdo e compile (**Ctrl+B**).
+
+O Qt Creator **não** usa as pastas `build/dev` e `build/release` dos presets: ele cria uma pasta própria, por exemplo
+`build/Desktop_Qt_6_8_3_MinGW_64_bit-Release/`. O caminho exato aparece em **Projetos → Compilar → Diretório de compilação**.
+
+Ao final de cada compilação, o CMake deixa nessa pasta tudo o que é preciso para rodar fora do Qt Creator:
+
+| Arquivo | Origem |
+| --- | --- |
+| `GestaoEquipamentos.exe`, `GestaoEquipamentosAdmin.exe` | compilados |
+| `Qt6Core.dll`, `Qt6Sql.dll`, `Qt6Widgets.dll`, `platforms/`, `sqldrivers/qsqlite.dll`… | `windeployqt` do kit |
+| `libgcc_s_seh-1.dll`, `libstdc++-6.dll`, `libwinpthread-1.dll` | compilador MinGW |
+| `libsodium-26.dll` | libsodium baixada no configure |
+| `admin_account.py` | `tools/admin_account.py` |
+
+Para desligar essa cópia automática: `-DGESTAOEQUIPAMENTOS_DEPLOY_QT=OFF`.
+
+### Terminal (presets)
 
 O build padrão compila **apenas** a aplicação e a ferramenta administrativa — os testes ficam fora (`EXCLUDE_FROM_ALL`).
 
 ```bash
-cmake --preset dev        # ou: cmake --preset release
+cmake --preset dev        # Debug,   em build/dev
 cmake --build --preset dev
 ./build/dev/GestaoEquipamentos
+
+cmake --preset release    # Release, em build/release (sem testes)
+cmake --build --preset release
 ```
+
+No Windows, rode no atalho **Qt 6.x (MinGW 64-bit)** do menu Iniciar — um terminal comum não encontra o compilador
+nem o Ninja. Se o Qt não for encontrado, informe o prefixo do kit (adapte versão e caminho):
+
+```powershell
+cmake --preset release -DCMAKE_PREFIX_PATH="C:/Qt/6.8.3/mingw_64"
+cmake --build --preset release
+.\build\release\GestaoEquipamentos.exe
+```
+
+No Ubuntu/Debian:
+
+```bash
+sudo apt install build-essential cmake ninja-build qt6-base-dev libqt6sql6-sqlite libsodium-dev qtkeychain-qt6-dev pkg-config
+```
+
+> `build/release` vazio ou sem DLLs quase sempre significa que esse preset nunca foi compilado (o Qt Creator compila em
+> outra pasta) ou que a compilação parou com erro. Confira o painel **Saída da compilação** / a saída do terminal.
 
 ### Primeira execução: criar a conta principal (admin)
 
 Na primeira abertura não existe nenhuma conta, e o aplicativo pede que a conta principal seja configurada.
-Ela é criada **fora da interface**, pelo script `tools/admin_account.py` (Python 3, só biblioteca padrão),
+Ela é criada **fora da interface**, pelo script `admin_account.py` (Python 3, só biblioteca padrão),
 que conversa com o executável `GestaoEquipamentosAdmin` via JSON pela entrada padrão. Assim a senha nunca
 aparece em argumentos de linha de comando nem no histórico do terminal.
 
-```bash
-# Windows
-py -3 tools/admin_account.py bootstrap
+O jeito mais simples é rodar o script **dentro da pasta de build** (ele é copiado para lá a cada compilação):
 
+```powershell
+# Windows — na pasta de build (ex.: a do Qt Creator)
+cd build\Desktop_Qt_6_8_3_MinGW_64_bit-Release
+.\GestaoEquipamentosAdmin.exe --version    # deve imprimir: GestaoEquipamentosAdmin protocolo 1
+py -3 admin_account.py bootstrap
+```
+
+```bash
 # Linux / macOS
-python3 tools/admin_account.py bootstrap
+cd build/dev
+python3 admin_account.py bootstrap
 ```
 
 - Rode com o **mesmo usuário do sistema operacional** que usa o aplicativo: o script grava no mesmo banco local
   e não pergunta caminho de banco.
 - Informe o nome de usuário e a senha (digitação oculta, com confirmação; 8 a 128 caracteres).
-- O script procura o `GestaoEquipamentosAdmin` ao lado dele, em `build/release`, `build/dev` e em subpastas de `build/` (layout do Qt Creator).
-  Em outro local, use `--helper <caminho do executável>`.
-- Se aparecer "Utilitário GestaoEquipamentosAdmin não encontrado", compile o alvo admin explicitamente:
-
-  ```bash
-  cmake --build --preset release --target GestaoEquipamentosAdmin
-  ```
-
-  e rode com `--helper`, por exemplo no Windows:
-
-  ```bash
-  py -3 tools/admin_account.py bootstrap --helper build\\release\\GestaoEquipamentosAdmin.exe
-  ```
-
+- Também dá para rodar a partir da raiz do projeto (`py -3 tools/admin_account.py bootstrap`): o script procura o
+  `GestaoEquipamentosAdmin` ao lado dele e em todas as subpastas de `build/`, usando o mais recente. Em outro local,
+  use `--helper <caminho do executável>`.
 - Só funciona uma vez: se a principal já existir, a operação é recusada. Para trocar a senha, use a recuperação.
+- Faça backup do banco antes de usar o script em um banco existente.
 
 Depois disso, abra o `GestaoEquipamentos` e entre com a conta principal. Ela cria as demais contas
-(administradores e operadores) pela tela **Contas**.
+(até três administradores, contando a principal, e operadores) pela tela **Contas**.
+
+#### Problemas comuns no script
+
+| Mensagem | Causa provável | O que fazer |
+| --- | --- | --- |
+| `Utilitário GestaoEquipamentosAdmin não encontrado` | o alvo admin não foi compilado | compile o projeto inteiro (ou `--target GestaoEquipamentosAdmin`) e rode na pasta de build |
+| `... faltam DLLs ...` (código 0xC0000135) | o `.exe` não inicia sem as DLLs do Qt/MinGW | recompile com a versão atual do CMake (copia as DLLs) ou rode `windeployqt` no `.exe` |
+| `... 0xC000007B` | DLLs de outra arquitetura ou de outro compilador (MSVC × MinGW) no `PATH` | use as DLLs do mesmo kit MinGW 64-bit, ao lado do `.exe` |
+| `BAD_REPLY` | o executável respondeu algo que não é o protocolo | rode `GestaoEquipamentosAdmin.exe --version` e confira a saída |
 
 #### Recuperar a conta principal
 
-Com o Google Authenticator vinculado (tela **Contas**) ou um dos códigos de recuperação guardados:
+1. Em **Contas → Vincular Google Authenticator**, leia o QR com o celular, confirme o código de 6 dígitos e guarde os
+   10 **códigos de recuperação** exibidos uma única vez.
+2. Se esquecer a senha, use **Recuperar conta principal** na tela de login, ou no terminal (mesmo usuário do sistema):
+
+   ```bash
+   py -3 admin_account.py recover        # Linux/macOS: python3 admin_account.py recover
+   ```
+
+   O script pede o usuário, o método (1 = Authenticator, 2 = código de recuperação) e o código; só depois de o código
+   ser aceito ele pede a nova senha. Se a nova senha não for enviada em 5 minutos, nada muda e o código continua valendo.
+3. Cinco códigos errados bloqueiam novas tentativas por 5 minutos. Cada tentativa recusada fica nos logs, sem o código.
+4. Usar um **código de recuperação** consome o código e remove o vínculo do Authenticator: vincule de novo para gerar
+   um novo conjunto de códigos.
+
+### Demonstração
 
 ```bash
-python3 tools/admin_account.py recover
+./build/dev/GestaoEquipamentos --demo
+./build/dev/GestaoEquipamentos --demo --demo-150                       # listas com 150 cadastros
+./build/dev/GestaoEquipamentos --demo --page logs --screenshot logs.png
 ```
 
-O script pede o usuário, o método (Authenticator ou código de recuperação) e o código; só depois de o código
-ser aceito ele pede a nova senha. Cinco códigos errados bloqueiam novas tentativas por 5 minutos.
+O modo `--demo` usa um banco separado (`demo.sqlite`) com equipamentos, pessoas e locais fictícios, sem tocar no banco
+real. `--page` aceita `pessoas`, `equipamentos`, `locais`, `logs` ou `logs-filtros`.
+
+### Dados e backup
+
+O caminho do banco aparece no rodapé do aplicativo. Ele fica em `QStandardPaths::AppLocalDataLocation`
+(no Windows, dentro de `%LOCALAPPDATA%`), fora da pasta do código.
+
+- **Backup:** feche todas as instâncias e copie `notebooks.sqlite` (e `notebooks.sqlite-wal`, se existir).
+- **Atualização de esquema:** antes de migrar, o aplicativo grava `backups/<arquivo>.pre-vN-<data UTC>.bak`; se a cópia
+  falhar, o banco não é alterado.
+- O segredo do Authenticator fica no cofre do sistema (Gerenciador de Credenciais no Windows), **não** no SQLite.
+- Nunca envie o banco operacional para o Git. Não use o SQLite em pasta de rede compartilhada.
+
+### Pacote para outro computador (Windows)
+
+No terminal do kit Qt MinGW:
+
+```powershell
+cmake --preset release
+cmake --build --preset release
+cmake --install build/release --prefix build/pacote
+windeployqt.exe --compiler-runtime build/pacote/bin/GestaoEquipamentos.exe
+windeployqt.exe --compiler-runtime build/pacote/bin/GestaoEquipamentosAdmin.exe
+```
+
+Copie a pasta `build/pacote` inteira para o destino (o `admin_account.py` já vai em `bin/`). O script da conta principal
+precisa de Python 3 instalado lá.
 
 ### Testes (sob demanda)
 

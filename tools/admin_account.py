@@ -26,6 +26,22 @@ INVALID_METHOD = "Opção inválida. Digite 1 ou 2."
 NO_REPLY = "O GestaoEquipamentosAdmin não respondeu a tempo. Nada foi confirmado."
 BAD_REPLY = "Resposta inválida do GestaoEquipamentosAdmin."
 REPLY_TIMEOUT = 120
+# Códigos de saída do Windows quando o executável nem chega a iniciar.
+WINDOWS_LOADER_ERRORS = {
+    0xC0000135: "faltam DLLs (Qt, MinGW ou libsodium) ao lado do executável",
+    0xC0000139: "uma DLL encontrada é de outra versão (ponto de entrada ausente)",
+    0xC000007B: "mistura de DLLs 32/64 bits ou de compiladores diferentes (MinGW x MSVC)",
+}
+MISSING_DLLS_HINT = ("Recompile com o CMake atualizado (ele copia as DLLs para a pasta de build) "
+                     "ou rode windeployqt no executável.")
+
+
+def loader_error(returncode):
+    """Mensagem para falhas do carregador do Windows, ou None."""
+    reason = WINDOWS_LOADER_ERRORS.get(returncode & 0xFFFFFFFF) if returncode else None
+    if reason:
+        return f"O GestaoEquipamentosAdmin não iniciou: {reason}. {MISSING_DLLS_HINT}"
+    return None
 
 
 class ScriptError(Exception):
@@ -91,6 +107,9 @@ def validate_helper(helper, test_profile):
     except (subprocess.SubprocessError, OSError):
         raise ScriptError("Não foi possível executar o GestaoEquipamentosAdmin informado.", 2) from None
 
+    message = loader_error(result.returncode)
+    if message:
+        raise ScriptError(message, 2)
     out = result.stdout.decode("utf-8", errors="replace").strip()
     err = result.stderr.decode("utf-8", errors="replace").strip()
     if result.returncode != 0 or "protocolo" not in out.lower():
@@ -128,6 +147,9 @@ def call_helper(helper, test_profile, request):
         command.append("--test-profile")
     result = subprocess.run(command, input=json.dumps(request).encode("utf-8"),
                             capture_output=True, shell=False, timeout=120)
+    message = loader_error(result.returncode)
+    if message:
+        raise ScriptError(message, 2)
     stdout = result.stdout.decode("utf-8", errors="replace")
     stderr = result.stderr.decode("utf-8", errors="replace")
     try:
@@ -172,7 +194,11 @@ class HelperSession:
         except queue.Empty:
             raise ScriptError(NO_REPLY, 1) from None
         if line is None:
-            raise ScriptError(BAD_REPLY, 1)
+            try:
+                returncode = self.process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                returncode = None
+            raise ScriptError(loader_error(returncode) or BAD_REPLY, 1)
         try:
             return json.loads(line.decode("utf-8"))
         except ValueError:
