@@ -76,6 +76,42 @@ cmake --build --preset dev
 ./build/dev/GestaoEquipamentos
 ```
 
+### Primeira execução: criar a conta principal (admin)
+
+Na primeira abertura não existe nenhuma conta, e o aplicativo pede que a conta principal seja configurada.
+Ela é criada **fora da interface**, pelo script `tools/admin_account.py` (Python 3, só biblioteca padrão),
+que conversa com o executável `GestaoEquipamentosAdmin` via JSON pela entrada padrão. Assim a senha nunca
+aparece em argumentos de linha de comando nem no histórico do terminal.
+
+```bash
+# Windows
+py -3 tools/admin_account.py bootstrap
+
+# Linux / macOS
+python3 tools/admin_account.py bootstrap
+```
+
+- Rode com o **mesmo usuário do sistema operacional** que usa o aplicativo: o script grava no mesmo banco local
+  e não pergunta caminho de banco.
+- Informe o nome de usuário e a senha (digitação oculta, com confirmação; 8 a 128 caracteres).
+- O script procura o `GestaoEquipamentosAdmin` ao lado dele, em `build/release` e em `build/dev`.
+  Em outro local, use `--helper <caminho do executável>`.
+- Só funciona uma vez: se a principal já existir, a operação é recusada. Para trocar a senha, use a recuperação.
+
+Depois disso, abra o `GestaoEquipamentos` e entre com a conta principal. Ela cria as demais contas
+(administradores e operadores) pela tela **Contas**.
+
+#### Recuperar a conta principal
+
+Com o Google Authenticator vinculado (tela **Contas**) ou um dos códigos de recuperação guardados:
+
+```bash
+python3 tools/admin_account.py recover
+```
+
+O script pede o usuário, o método (Authenticator ou código de recuperação) e o código; só depois de o código
+ser aceito ele pede a nova senha. Cinco códigos errados bloqueiam novas tentativas por 5 minutos.
+
 ### Testes (sob demanda)
 
 Os testes usam **Qt Test** com um executável por suíte, registrados no CTest. Para compilar e rodar tudo:

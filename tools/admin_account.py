@@ -42,7 +42,8 @@ def find_helper(explicit):
             return candidate
         raise ScriptError(HELPER_NOT_FOUND, 2)
     here = Path(__file__).resolve().parent
-    for folder in (here, here.parent / "build" / "dev"):
+    # Ao lado do script (pacote instalado em bin/) ou nas pastas dos presets de build.
+    for folder in (here, here.parent / "build" / "release", here.parent / "build" / "dev"):
         for name in HELPER_NAMES:
             candidate = folder / name
             if candidate.is_file():
