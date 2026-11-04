@@ -32,8 +32,8 @@ elseif(NOT TARGET sodium::sodium)
 endif()
 
 # QtKeychain 0.17.0 (BSD-3-Clause). Windows: fontes no commit da tag, biblioteca estática sobre o Credential Store;
-# demais sistemas: pacote Qt6Keychain. O alvo notebookflow_keychain é o único ponto de ligação.
-add_library(notebookflow_keychain INTERFACE)
+# demais sistemas: pacote Qt6Keychain. O alvo gestaoequipamentos_keychain é o único ponto de ligação.
+add_library(gestaoequipamentos_keychain INTERFACE)
 if(WIN32 AND GESTAOEQUIPAMENTOS_FETCH_DEPENDENCIES)
   set(_keychain_exclude)
   if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.28)
@@ -69,20 +69,20 @@ if(WIN32 AND GESTAOEQUIPAMENTOS_FETCH_DEPENDENCIES)
   endif()
   # Biblioteca estática: sem isso o cabeçalho exportado declara dllimport.
   target_compile_definitions(qt6keychain PUBLIC QT6KEYCHAIN_STATIC_DEFINE)
-  target_link_libraries(notebookflow_keychain INTERFACE qt6keychain)
+  target_link_libraries(gestaoequipamentos_keychain INTERFACE qt6keychain)
 else()
   find_package(Qt6Keychain REQUIRED)
   if(TARGET Qt6Keychain::Qt6Keychain)
-    target_link_libraries(notebookflow_keychain INTERFACE Qt6Keychain::Qt6Keychain)
+    target_link_libraries(gestaoequipamentos_keychain INTERFACE Qt6Keychain::Qt6Keychain)
   elseif(TARGET qt6keychain)
-    target_link_libraries(notebookflow_keychain INTERFACE qt6keychain)
+    target_link_libraries(gestaoequipamentos_keychain INTERFACE qt6keychain)
   else()
-    target_link_libraries(notebookflow_keychain INTERFACE ${QTKEYCHAIN_LIBRARIES})
-    target_include_directories(notebookflow_keychain INTERFACE ${QTKEYCHAIN_INCLUDE_DIRS})
+    target_link_libraries(gestaoequipamentos_keychain INTERFACE ${QTKEYCHAIN_LIBRARIES})
+    target_include_directories(gestaoequipamentos_keychain INTERFACE ${QTKEYCHAIN_INCLUDE_DIRS})
   endif()
 endif()
 
-function(notebookflow_copy_runtime_dlls target)
+function(gestaoequipamentos_copy_runtime_dlls target)
   if(WIN32 AND GESTAOEQUIPAMENTOS_SODIUM_DLL)
     add_custom_command(TARGET ${target} POST_BUILD
       COMMAND ${CMAKE_COMMAND} -E copy_if_different "${GESTAOEQUIPAMENTOS_SODIUM_DLL}" "$<TARGET_FILE_DIR:${target}>")

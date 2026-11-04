@@ -4,9 +4,9 @@
 
 namespace {
 const QString DemoPrincipal = QStringLiteral("demo.principal");
-const QByteArray DemoPassword = QByteArrayLiteral("demonstracao-notebookflow");
+const QByteArray DemoPassword = QByteArrayLiteral("demonstracao-gestaoequipamentos");
 const QString DemoOperator = QStringLiteral("demo.operador");
-const QByteArray DemoOperatorPassword = QByteArrayLiteral("operador-demonstracao-notebookflow");
+const QByteArray DemoOperatorPassword = QByteArrayLiteral("operador-demonstracao-gestaoequipamentos");
 }
 
 Session seedDemo(AuthService &auth, NotebookStore &store, AccountService &accounts, DataProfile profile, LocationService &locations, PeopleService &people) {
