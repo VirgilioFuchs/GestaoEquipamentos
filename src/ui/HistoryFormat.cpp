@@ -8,42 +8,64 @@
 
 namespace {
 QString plain(const QJsonValue &value) {
-    if (value.isBool()) return value.toBool() ? QStringLiteral("Sim") : QStringLiteral("Não");
+    if (value.isBool())
+        return value.toBool() ? QStringLiteral("Sim") : QStringLiteral("Não");
     if (value.isDouble()) {
         const double number = value.toDouble();
         return std::floor(number) == number ? QString::number(value.toInteger()) : QString::number(number);
     }
     return value.toString();
 }
-bool truthy(const QJsonValue &value) { return value.isBool() ? value.toBool() : value.toDouble() != 0; }
-QString yesNo(const QJsonValue &value) { return truthy(value) ? QStringLiteral("Sim") : QStringLiteral("Não"); }
-QString activeLabel(const QJsonValue &value) { return truthy(value) ? QStringLiteral("Ativa") : QStringLiteral("Inativa"); }
-QString notebookActive(const QJsonValue &value) { return truthy(value) ? QStringLiteral("Ativo") : QStringLiteral("Inativo"); }
-QString locationDeleted(const QJsonValue &value) { return truthy(value) ? QStringLiteral("Excluído") : QStringLiteral("Ativo"); }
+bool truthy(const QJsonValue &value) {
+    return value.isBool() ? value.toBool() : value.toDouble() != 0;
+}
+QString yesNo(const QJsonValue &value) {
+    return truthy(value) ? QStringLiteral("Sim") : QStringLiteral("Não");
+}
+QString activeLabel(const QJsonValue &value) {
+    return truthy(value) ? QStringLiteral("Ativa") : QStringLiteral("Inativa");
+}
+QString notebookActive(const QJsonValue &value) {
+    return truthy(value) ? QStringLiteral("Ativo") : QStringLiteral("Inativo");
+}
+QString locationDeleted(const QJsonValue &value) {
+    return truthy(value) ? QStringLiteral("Excluído") : QStringLiteral("Ativo");
+}
 QString personRole(const QJsonValue &value) {
-    if (value.toString()=="professor") return roleLabel(ResponsibleRole::Professor);
-    if (value.toString()=="assistant") return roleLabel(ResponsibleRole::Assistant);
+    if (value.toString() == "professor")
+        return roleLabel(ResponsibleRole::Professor);
+    if (value.toString() == "assistant")
+        return roleLabel(ResponsibleRole::Assistant);
     return plain(value);
 }
 QString accountRole(const QJsonValue &value) {
     const auto role = value.toString();
-    if (role == "principal") return QStringLiteral("Principal");
-    if (role == "admin") return QStringLiteral("Administrador");
-    if (role == "common") return QStringLiteral("Comum");
+    if (role == "principal")
+        return QStringLiteral("Principal");
+    if (role == "admin")
+        return QStringLiteral("Administrador");
+    if (role == "common")
+        return QStringLiteral("Comum");
     return plain(value);
 }
 QString notebookStatus(const QJsonValue &value) {
     const auto status = value.toString();
-    if (status == "available") return statusLabel(Status::Available);
-    if (status == "loaned") return statusLabel(Status::Loaned);
-    if (status == "maintenance") return statusLabel(Status::Maintenance);
+    if (status == "available")
+        return statusLabel(Status::Available);
+    if (status == "loaned")
+        return statusLabel(Status::Loaned);
+    if (status == "maintenance")
+        return statusLabel(Status::Maintenance);
     return plain(value);
 }
 QString methodLabel(const QJsonValue &value) {
     const auto method = value.toString();
-    if (method == "authenticator") return QStringLiteral("Código do Authenticator");
-    if (method == "backup_code") return QStringLiteral("Código de recuperação");
-    if (method == "totp") return QStringLiteral("Google Authenticator");
+    if (method == "authenticator")
+        return QStringLiteral("Código do Authenticator");
+    if (method == "backup_code")
+        return QStringLiteral("Código de recuperação");
+    if (method == "totp")
+        return QStringLiteral("Google Authenticator");
     return plain(value);
 }
 QString localTime(const QJsonValue &value) {
@@ -84,54 +106,74 @@ const std::vector<Field> &fields() {
 QString side(const QJsonValue &value, const std::function<QString(const QJsonValue &)> &format) {
     return value.isNull() || value.isUndefined() ? QStringLiteral("—") : format(value);
 }
-}
+} // namespace
 
 QString describeChanges(const QJsonObject &changes) {
     QStringList parts;
     for (const auto &field : fields()) {
-        if (!changes.contains(field.key)) continue;
+        if (!changes.contains(field.key))
+            continue;
         const auto entry = changes.value(field.key).toObject();
-        parts << field.label + ": " + side(entry.value("de"), field.format) + " → " + side(entry.value("para"), field.format);
+        parts << field.label + ": " + side(entry.value("de"), field.format) + " → " +
+                     side(entry.value("para"), field.format);
     }
     return parts.join("; ");
 }
 QString historyDetails(const HistoryEntry &entry) {
     const auto changes = describeChanges(entry.changes);
-    if (changes.isEmpty()) return entry.details;
+    if (changes.isEmpty())
+        return entry.details;
     // "Local alterado: A → B" repete a alteração "Local: A → B" já descrita em changes.
-    if (entry.details.isEmpty() || (entry.details.startsWith(QStringLiteral("Local alterado:")) && entry.changes.contains("location"))) return changes;
+    if (entry.details.isEmpty() ||
+        (entry.details.startsWith(QStringLiteral("Local alterado:")) && entry.changes.contains("location")))
+        return changes;
     return entry.details + "; " + changes;
 }
 QString historyAssetTagLabel(const HistoryEntry &entry) {
-    if (!entry.assetTag.isEmpty()) return entry.assetTag;
+    if (!entry.assetTag.isEmpty())
+        return entry.assetTag;
     return entry.entityType == "notebook" ? QStringLiteral("Não informado") : QStringLiteral("—");
 }
 QString historyNotebookNameLabel(const HistoryEntry &entry) {
-    if (!entry.notebookName.isEmpty()) return entry.notebookName;
+    if (!entry.notebookName.isEmpty())
+        return entry.notebookName;
     return entry.entityType == "notebook" ? QStringLiteral("Não informado") : QStringLiteral("—");
 }
 QString notebookText(const HistoryEntry &entry) {
     QStringList parts;
-    if (!entry.assetTag.isEmpty()) parts << entry.assetTag;
-    if (!entry.notebookName.isEmpty()) parts << entry.notebookName;
-    if (!parts.isEmpty()) return parts.join(QStringLiteral(" · "));
+    if (!entry.assetTag.isEmpty())
+        parts << entry.assetTag;
+    if (!entry.notebookName.isEmpty())
+        parts << entry.notebookName;
+    if (!parts.isEmpty())
+        return parts.join(QStringLiteral(" · "));
     return entry.entityType == "notebook" ? QStringLiteral("Não informado") : QStringLiteral("—");
 }
 QString responsibleText(const HistoryEntry &entry) {
-    if (entry.action != "Retirada" && entry.action != QStringLiteral("Devolução")) return QStringLiteral("—");
-    if (entry.responsibleName.isEmpty()) return QStringLiteral("Não informado");
+    if (entry.action != "Retirada" && entry.action != QStringLiteral("Devolução"))
+        return QStringLiteral("—");
+    if (entry.responsibleName.isEmpty())
+        return QStringLiteral("Não informado");
     const auto role = personRole(entry.responsibleRole);
-    if (role.isEmpty()) return entry.responsibleName;
-    return entry.responsibleName + " (" + role + (entry.responsibleSubject.isEmpty() ? QString() : " · " + entry.responsibleSubject) + ")";
+    if (role.isEmpty())
+        return entry.responsibleName;
+    return entry.responsibleName + " (" + role +
+           (entry.responsibleSubject.isEmpty() ? QString() : " · " + entry.responsibleSubject) + ")";
 }
 QString locationText(const HistoryEntry &entry) {
     const auto location = entry.changes.value("location").toObject();
     const auto after = location.value("para").toString(), before = location.value("de").toString();
-    if (entry.action == "Retirada") return !entry.checkoutLocation.isEmpty() ? entry.checkoutLocation : !after.isEmpty() ? after : QStringLiteral("—");
-    if (entry.action == QStringLiteral("Devolução")) return !entry.returnLocation.isEmpty() ? entry.returnLocation : !after.isEmpty() ? after : QStringLiteral("—");
+    if (entry.action == "Retirada")
+        return !entry.checkoutLocation.isEmpty() ? entry.checkoutLocation
+               : !after.isEmpty()                ? after
+                                                 : QStringLiteral("—");
+    if (entry.action == QStringLiteral("Devolução"))
+        return !entry.returnLocation.isEmpty() ? entry.returnLocation : !after.isEmpty() ? after : QStringLiteral("—");
     if (entry.action == QStringLiteral("Localização") || (entry.action == "Notebook atualizado" && !location.isEmpty()))
-        return (before.isEmpty() ? QStringLiteral("—") : before) + " → " + (after.isEmpty() ? QStringLiteral("—") : after);
-    if (entry.action == "Cadastro") return after.isEmpty() ? QStringLiteral("—") : after;
+        return (before.isEmpty() ? QStringLiteral("—") : before) + " → " +
+               (after.isEmpty() ? QStringLiteral("—") : after);
+    if (entry.action == "Cadastro")
+        return after.isEmpty() ? QStringLiteral("—") : after;
     if (entry.action == "Local cadastrado") {
         const auto name = entry.changes.value("name").toObject().value("para").toString();
         return name.isEmpty() ? QStringLiteral("—") : name;

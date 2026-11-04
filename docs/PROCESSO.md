@@ -21,8 +21,26 @@ Entrada principal em `src/main.cpp`:
 1. Define identidade da aplicação (`LocalDatabase::applyApplicationIdentity`).
 2. Resolve o caminho do banco local por perfil operacional ou demo.
 3. Inicializa serviços: `AuthService`, `NotebookStore`, `AccountService`, `LocationService`, `PeopleService`, `RecoveryService`.
-4. Exibe login e cria sessão.
-5. Abre a janela principal (`MainWindow`) com o contexto de serviços.
+4. Se ainda não existe conta principal, mostra o aviso de configuração pendente (`BootstrapPendingDialog`).
+5. Exibe login e cria sessão.
+6. Abre a janela principal (`MainWindow`) com o contexto de serviços.
+
+#### Configuração da conta principal (fora da interface)
+
+A conta principal não é criada pela interface gráfica, e sim pelo script `tools/admin_account.py`:
+
+```text
+admin_account.py ──(JSON pela entrada padrão)──> GestaoEquipamentosAdmin ──> AdminProtocol ──> AuthService / RecoveryService ──> SQLite
+```
+
+1. O script pede usuário e senha com digitação oculta (`getpass`) e procura o executável `GestaoEquipamentosAdmin`
+   (ao lado do script, em `build/release` ou em `build/dev`, ou pelo `--helper`).
+2. Cada requisição é uma linha JSON (`bootstrap` ou `recover`); a resposta é lida antes da próxima.
+   A senha nunca vai em argumento de linha de comando.
+3. `GestaoEquipamentosAdmin` (`src/admin/admin_main.cpp`) abre o mesmo banco do aplicativo para o usuário
+   atual do sistema e repassa a requisição ao `AdminProtocol`.
+4. `bootstrap` só é aceito se não houver principal; na recuperação o código (Authenticator ou de recuperação)
+   é conferido antes de a nova senha ser pedida, e código e senha são gravados juntos na mesma transação.
 
 ### 2) Banco local e migrações
 

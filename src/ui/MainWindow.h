@@ -23,7 +23,8 @@ class QTabWidget;
 class MainWindow : public QMainWindow {
     Q_OBJECT
 public:
-    MainWindow(NotebookStore &store, AuthService &auth, AccountService &accounts, RecoveryService &recovery, Session session, const QString &path, LocationService &locations, PeopleService &people);
+    MainWindow(NotebookStore &store, AuthService &auth, AccountService &accounts, RecoveryService &recovery,
+               Session session, const QString &path, LocationService &locations, PeopleService &people);
     const Session &activeSession() const { return session; }
     void showPage(const QString &key);
     // Abaixo desta altura (tela de notebook, 1366×768) margens, linhas e controles ficam compactos.
@@ -33,8 +34,10 @@ signals:
     void logoutRequested();
     // Reautenticação com outra conta (ou que exige troca de senha): a janela e seus rascunhos devem ser descartados.
     void sessionReplaced(const Session &session);
+
 protected:
     void resizeEvent(QResizeEvent *event) override;
+
 private:
     NotebookStore &store;
     HistoryQueryService historyService;
@@ -57,9 +60,12 @@ private:
     QLabel *availableEmpty, *loanedEmpty, *maintenanceEmpty;
     QLineEdit *search;
     QComboBox *activityFilter;
-    QLabel *total, *available, *loaned, *maintenance, *feedback, *sessionDeadline, *inventorySummary, *inactivateReason, *emptyTitle, *emptyBody;
-    // Matriz D-10: Disponíveis (local, manutenção, retirada); Indisponíveis (local, devolução); Manutenção (concluir).
-    QPushButton *availableLocationButton, *sendMaintenanceButton, *checkoutButton, *loanedLocationButton, *returnButton, *finishMaintenanceButton, *editButton;
+    QLabel *total, *available, *loaned, *maintenance, *feedback, *sessionDeadline, *inventorySummary, *inactivateReason,
+        *emptyTitle, *emptyBody;
+    // Matriz de ações por guia: Disponíveis (local, manutenção, retirada); Indisponíveis (local, devolução); Manutenção
+    // (concluir).
+    QPushButton *availableLocationButton, *sendMaintenanceButton, *checkoutButton, *loanedLocationButton, *returnButton,
+        *finishMaintenanceButton, *editButton;
     QPushButton *inactivateButton = nullptr, *reactivateButton = nullptr;
     bool locked = false, reauthenticating = false, compact = false, densityApplied = false;
     void applyDensity(bool value);

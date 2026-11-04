@@ -12,8 +12,10 @@
 
 class AuthError : public std::runtime_error {
 public:
-    AuthError(const QString &code, const QString &message) : std::runtime_error(message.toStdString()), errorCode(code) {}
+    AuthError(const QString &code, const QString &message)
+        : std::runtime_error(message.toStdString()), errorCode(code) {}
     QString code() const { return errorCode; }
+
 private:
     QString errorCode;
 };
@@ -21,13 +23,29 @@ private:
 // Prazo absoluto, contado do login, das sessões de administrador e da principal; não é renovado por atividade.
 constexpr qint64 AdminSessionDuration = 15 * 60 * 1000;
 
-enum class Permission { OperateInventory, ChangeOwnPassword, ManageCommonAccounts, ManageAdministrators, ConfigureRecovery, InactivateCatalog };
+enum class Permission {
+    OperateInventory,
+    ChangeOwnPassword,
+    ManageCommonAccounts,
+    ManageAdministrators,
+    ConfigureRecovery,
+    InactivateCatalog
+};
 
 class AuthorizationError : public std::runtime_error {
 public:
-    enum class Reason { NotAuthenticated, Inactive, Revoked, PasswordChangeRequired, Forbidden, Expired };
-    AuthorizationError(Reason reason, const QString &message) : std::runtime_error(message.toStdString()), why(reason) {}
+    enum class Reason {
+        NotAuthenticated,
+        Inactive,
+        Revoked,
+        PasswordChangeRequired,
+        Forbidden,
+        Expired
+    };
+    AuthorizationError(Reason reason, const QString &message)
+        : std::runtime_error(message.toStdString()), why(reason) {}
     Reason reason() const { return why; }
+
 private:
     Reason why;
 };
@@ -37,6 +55,7 @@ class PreparedPassword {
 public:
     PreparedPassword(const PreparedPassword &) = default;
     PreparedPassword &operator=(const PreparedPassword &) = default;
+
 private:
     friend class AuthService;
     friend class AccountService;
@@ -50,9 +69,11 @@ private:
 class PasswordChangeAttempt {
 public:
     void prepare(const QByteArray &newPassword);
+
 private:
     friend class AuthService;
-    PasswordChangeAttempt(const PasswordHasher &hasher, QString currentVerifier, qint64 accountId, qint64 credentialVersion);
+    PasswordChangeAttempt(const PasswordHasher &hasher, QString currentVerifier, qint64 accountId,
+                          qint64 credentialVersion);
     const PasswordHasher &hasher;
     QString currentVerifier;
     qint64 accountId;
@@ -64,9 +85,11 @@ private:
 class LoginAttempt {
 public:
     void verify();
+
 private:
     friend class AuthService;
-    LoginAttempt(const PasswordHasher &hasher, QString verifier, QByteArray password, qint64 accountId, qint64 credentialVersion);
+    LoginAttempt(const PasswordHasher &hasher, QString verifier, QByteArray password, qint64 accountId,
+                 qint64 credentialVersion);
     const PasswordHasher &hasher;
     QString verifier;
     QByteArray password;
@@ -77,7 +100,8 @@ private:
 
 class AuthService {
 public:
-    AuthService(LocalDatabase &database, const PasswordHasher &hasher, const SessionClock &clock = SessionClock::system(), qint64 adminDurationMs = AdminSessionDuration);
+    AuthService(LocalDatabase &database, const PasswordHasher &hasher,
+                const SessionClock &clock = SessionClock::system(), qint64 adminDurationMs = AdminSessionDuration);
     static QString canonicalUsername(const QString &username);
     // Sem SQL: pode rodar fora da thread proprietária da conexão.
     PreparedPassword preparePassword(const QByteArray &utf8) const;
@@ -98,6 +122,7 @@ public:
     // Sem SQL: a mesma regra de prazo de authorize, para a interface bloquear antes da próxima ação.
     bool sessionExpired(const Session &session) const;
     const SessionClock &sessionClock() const { return clock; }
+
 private:
     struct SessionState {
         qint64 accountId;

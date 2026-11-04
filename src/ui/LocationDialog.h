@@ -12,10 +12,12 @@ QString locationSaveError(const std::exception &e);
 class LocationDialog : public QDialog {
 public:
     LocationDialog(LocationService &locations, std::function<Session()> currentSession,
-                   const std::optional<Location> &expected = std::nullopt, const QString &initialName = {}, QWidget *parent = nullptr);
+                   const std::optional<Location> &expected = std::nullopt, const QString &initialName = {},
+                   QWidget *parent = nullptr);
     int exec() override;
     qint64 savedLocationId() const { return savedId; }
     std::function<void()> onExpired;
+
 private:
     qint64 savedId = 0;
     std::exception_ptr authorizationError;

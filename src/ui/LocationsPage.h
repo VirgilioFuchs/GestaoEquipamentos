@@ -14,6 +14,7 @@ public:
     void reload();
     std::function<void()> onExpired;
     std::function<void()> onChanged;
+
 private:
     LocationService &locations;
     const Session &session;

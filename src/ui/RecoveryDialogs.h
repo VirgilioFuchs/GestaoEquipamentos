@@ -22,6 +22,7 @@ public:
     // A sessão administrativa venceu durante o diálogo; quem abriu deve bloquear a janela.
     bool sessionExpired() const { return expired; }
     void reject() override;
+
 private:
     RecoveryService &recovery;
     const Session &session;
@@ -42,11 +43,13 @@ private:
     void clearCodes();
 };
 
-// Recuperação da principal a partir do login: o worker só deriva a nova senha; recoverPrincipal roda na thread da interface.
+// Recuperação da principal a partir do login: o worker só deriva a nova senha; recoverPrincipal roda na thread da
+// interface.
 class RecoveryDialog : public QDialog {
 public:
     RecoveryDialog(AuthService &auth, RecoveryService &recovery, QWidget *parent = nullptr);
     void reject() override;
+
 private:
     AuthService &auth;
     RecoveryService &recovery;

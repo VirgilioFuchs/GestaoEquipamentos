@@ -9,8 +9,10 @@ public:
     explicit HistoryQueryService(LocalDatabase &database) : database(database) {}
     HistoryQueryService(const HistoryQueryService &) = delete;
     HistoryQueryService &operator=(const HistoryQueryService &) = delete;
-    HistoryPage search(const HistoryFilter &, const QDateTime &, const QTimeZone &, int limit = DefaultLimit, QStringList *queryPlan = nullptr) const;
+    HistoryPage search(const HistoryFilter &, const QDateTime &, const QTimeZone &, int limit = DefaultLimit,
+                       QStringList *queryPlan = nullptr) const;
     HistoryFilterOptions filterOptions() const;
+
 private:
     LocalDatabase &database;
 };

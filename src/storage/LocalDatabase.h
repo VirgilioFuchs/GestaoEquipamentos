@@ -11,7 +11,8 @@ struct Actor {
     QString username;
 };
 
-// changes: {"<campo>": {"de": <anterior>, "para": <novo>}} com campos de changeFieldAllowlist() e valores escalares ou null.
+// changes: {"<campo>": {"de": <anterior>, "para": <novo>}} com campos de changeFieldAllowlist() e valores escalares ou
+// null.
 struct EventRecord {
     QString entityType;
     std::optional<qint64> entityId;
@@ -27,7 +28,10 @@ struct EventRecord {
     std::optional<qint64> fromLocationId;
 };
 
-enum class DataProfile { Operational, Demo };
+enum class DataProfile {
+    Operational,
+    Demo
+};
 
 // All operations execute synchronously on the owning (GUI) thread.
 class LocalDatabase {
@@ -50,6 +54,7 @@ public:
     static QString catalogKey(const QString &name);
     static QJsonObject change(const QString &field, const QJsonValue &from, const QJsonValue &to);
     static const QStringList &changeFieldAllowlist();
+
 private:
     QSqlDatabase db;
     QString name;

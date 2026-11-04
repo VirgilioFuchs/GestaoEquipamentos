@@ -12,6 +12,7 @@ public:
     qint64 create(const Session &session, const PersonDraft &draft);
     void update(const Session &session, const Person &expected, const PersonDraft &draft);
     void inactivate(const Session &session, qint64 personId);
+
 private:
     LocalDatabase &database;
     AuthService &auth;

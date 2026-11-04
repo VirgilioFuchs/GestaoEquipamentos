@@ -11,13 +11,19 @@ class QWidget;
 // pelo operador. Reset: redefine a senha de uma conta comum existente (temporária ou assistida).
 class PasswordSetDialog : public QDialog {
 public:
-    enum class Mode { Required, Assisted, Reset };
+    enum class Mode {
+        Required,
+        Assisted,
+        Reset
+    };
     PasswordSetDialog(AuthService &auth, Session &session, QWidget *parent = nullptr);
     // kind Administrator: Assisted cria administrador e Reset redefine a senha de administrador (somente a principal).
     PasswordSetDialog(Mode mode, AuthService &auth, AccountService &accounts, const Session &session,
-                      const QString &username, qint64 accountId = 0, QWidget *parent = nullptr, AccountRole kind = AccountRole::Common);
+                      const QString &username, qint64 accountId = 0, QWidget *parent = nullptr,
+                      AccountRole kind = AccountRole::Common);
     qint64 accountId() const { return target; }
     void reject() override;
+
 private:
     Mode mode;
     AccountRole kind = AccountRole::Common;
@@ -46,6 +52,7 @@ public:
     // Definição assistida: a etapa de nome fecha sem gravar; a conta só é criada pelo PasswordSetDialog Assisted.
     QString assistedUsername() const { return assistedName; }
     void reject() override;
+
 private:
     AuthService &auth;
     AccountService &accounts;

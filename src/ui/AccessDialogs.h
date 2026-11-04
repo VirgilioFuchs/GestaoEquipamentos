@@ -15,13 +15,18 @@ public:
 class LoginDialog : public QDialog {
 public:
     // Reauthentication não oferece "Recuperar conta principal".
-    enum class Mode { Login, Reauthentication };
+    enum class Mode {
+        Login,
+        Reauthentication
+    };
     LoginDialog(AuthService &auth, RecoveryService &recovery, Mode mode = Mode::Login, QWidget *parent = nullptr);
     Session session() const { return issued; }
-    // Prazo administrativo vencido: mostra a expiração, pré-preenche o usuário e oferece Cancelar (mantém o bloqueio) e Sair.
+    // Prazo administrativo vencido: mostra a expiração, pré-preenche o usuário e oferece Cancelar (mantém o bloqueio) e
+    // Sair.
     void setReauthentication(const QString &expiredUsername);
     bool logoutChosen() const { return leaving; }
     void reject() override;
+
 private:
     AuthService &auth;
     RecoveryService &recovery;

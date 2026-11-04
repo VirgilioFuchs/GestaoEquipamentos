@@ -15,10 +15,12 @@ class QVBoxLayout;
 // As seções Recuperação e Administradores só existem para a principal.
 class AccountsPage : public QWidget {
 public:
-    AccountsPage(AccountService &accounts, AuthService &auth, RecoveryService &recovery, const Session &session, QWidget *parent = nullptr);
+    AccountsPage(AccountService &accounts, AuthService &auth, RecoveryService &recovery, const Session &session,
+                 QWidget *parent = nullptr);
     void reload();
     // Chamado quando a carga ou uma ação é recusada por prazo administrativo vencido.
     std::function<void()> onExpired;
+
 private:
     AccountService &accounts;
     AuthService &auth;
@@ -35,7 +37,8 @@ private:
     QStackedWidget *states;
     QTableWidget *table, *adminTable = nullptr;
     QLabel *status, *emptyTitle, *emptyBody, *loadError, *feedback, *adminCount = nullptr, *adminLimit = nullptr;
-    QPushButton *resetButton, *inactivateButton, *createAdminButton = nullptr, *adminResetButton = nullptr, *adminInactivateButton = nullptr;
+    QPushButton *resetButton, *inactivateButton, *createAdminButton = nullptr, *adminResetButton = nullptr,
+                                                 *adminInactivateButton = nullptr;
     const AccountSummary *selected() const;
     void updateActions();
     void createAccount();

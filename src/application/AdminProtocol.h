@@ -19,4 +19,4 @@ using ReadLine = std::function<std::optional<QByteArray>(int timeoutMs)>;
 using WriteLine = std::function<void(const QByteArray &json)>;
 // Conduz uma conversa completa e devolve o código de saída do processo.
 int serve(const ReadLine &read, const WriteLine &write, AuthService &auth, RecoveryService &recovery);
-}
+} // namespace AdminProtocol

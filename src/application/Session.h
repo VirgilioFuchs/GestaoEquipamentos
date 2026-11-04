@@ -14,6 +14,7 @@ public:
     AccountRole role() const { return accountRole; }
     bool mustChangePassword() const { return mustChange; }
     QDateTime issuedAtUtc() const { return issued; }
+
 private:
     friend class AuthService;
     QByteArray token;

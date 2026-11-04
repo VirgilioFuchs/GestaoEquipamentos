@@ -26,6 +26,7 @@ public:
     void write(const QString &key, const QByteArray &secret) override;
     QByteArray read(const QString &key) override;
     void remove(const QString &key) override;
+
 private:
     QString service;
 };
