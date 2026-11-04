@@ -1,0 +1,39 @@
+# Build
+build/
+build*/
+out/
+dist/
+cmake-build-*/
+
+# Binaries / objects
+bin/
+obj/
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.dylib
+*.dll
+*.exe
+*.pdb
+*.ilk
+
+# CMake / IDE
+CMakeUserPresets.json
+*.user
+.vscode/
+.idea/
+
+# Runtime/local data
+*.sqlite
+*.sqlite-*
+*.db
+*.log
+
+# Python helper cache
+__pycache__/
+
+# Sistema
+.DS_Store
+Thumbs.db
