@@ -93,8 +93,8 @@ MainWindow::MainWindow(NotebookStore &store, AuthService &auth, AccountService &
     auto *nav = new QVBoxLayout(sidebar);
     nav->setContentsMargins(22, 32, 22, 24);
     nav->setSpacing(12);
-    nav->addWidget(label("▣  GE", "brand"));
-    nav->addWidget(label("Gestão de Equipamentos", "navSubtitle"));
+    nav->addWidget(label("▣  GestaoEquipamentos", "brand"));
+    nav->addWidget(label("GESTÃO DE EQUIPAMENTOS", "navCaption"));
     nav->addSpacing(32);
     auto *inventoryNav = new QPushButton("  Equipamentos");
     inventoryNav->setObjectName("navActive");
