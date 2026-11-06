@@ -21,13 +21,20 @@ Entrada principal em `src/main.cpp`:
 1. Define identidade da aplicação (`LocalDatabase::applyApplicationIdentity`).
 2. Resolve o caminho do banco local por perfil operacional ou demo.
 3. Inicializa serviços: `AuthService`, `NotebookStore`, `AccountService`, `LocationService`, `PeopleService`, `RecoveryService`.
-4. Se ainda não existe conta principal, mostra o aviso de configuração pendente (`BootstrapPendingDialog`).
+4. Se ainda não existe conta principal, abre o assistente de primeira configuração (`FirstRunWizard`).
 5. Exibe login e cria sessão.
 6. Abre a janela principal (`MainWindow`) com o contexto de serviços.
 
-#### Configuração da conta principal (fora da interface)
+#### Configuração da conta principal
 
-A conta principal não é criada pela interface gráfica, e sim pelo script `tools/admin_account.py`:
+Na primeira abertura, o `FirstRunWizard` (`src/ui/FirstRunWizard.cpp`) conduz quatro etapas: boas-vindas, criação
+da conta principal, vínculo opcional do Authenticator e conclusão. A conta é criada por
+`AuthService::preparePassword` (política de 8 a 128 caracteres e Argon2id) e `AuthService::bootstrapPrincipal`,
+que recusa a operação se já houver qualquer conta — por isso o assistente só funciona uma vez. Para o vínculo
+opcional, o assistente abre uma sessão curta da principal e reutiliza o `EnrollmentDialog`; a sessão é encerrada
+ao sair da etapa, e o usuário entra normalmente pela tela de login.
+
+O mesmo `bootstrapPrincipal` também é usado pelo utilitário técnico `tools/admin_account.py`:
 
 ```text
 admin_account.py ──(JSON pela entrada padrão)──> GestaoEquipamentosAdmin ──> AdminProtocol ──> AuthService / RecoveryService ──> SQLite

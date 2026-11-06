@@ -23,7 +23,7 @@
 int main(int argc, char *argv[]) {
     QApplication app(argc, argv);
     LocalDatabase::applyApplicationIdentity();
-    QCoreApplication::setApplicationVersion("0.1.0");
+    QCoreApplication::setApplicationVersion(QStringLiteral(GESTAOEQUIPAMENTOS_VERSION));
     // O tema é claro; o modo escuro do sistema não pode escurecer listas e barras de rolagem que o QSS não cobre.
 #if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
     QGuiApplication::styleHints()->setColorScheme(Qt::ColorScheme::Light);

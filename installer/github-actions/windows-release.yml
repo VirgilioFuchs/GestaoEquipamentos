@@ -1,0 +1,137 @@
+# Destino: .github/workflows/windows-release.yml
+# Este arquivo fica aqui só até ser movido para .github/workflows/ por alguém com permissão de editar workflows
+# (o GitHub não permite que integrações sem a permissão "workflows" criem esse arquivo).
+name: Instalador Windows
+
+# Gera o Setup.exe (Qt 6 + MinGW + Inno Setup). Em tags v* publica o instalador na página de Releases.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+  # Em pull requests apenas compila e gera o artefato (nada é publicado).
+  pull_request:
+    paths:
+      - "src/**"
+      - "resources/**"
+      - "cmake/**"
+      - "CMakeLists.txt"
+      - "CMakePresets.json"
+      - "installer/**"
+      - ".github/workflows/windows-release.yml"
+
+permissions:
+  contents: write
+
+env:
+  QT_VERSION: "6.8.3"
+
+jobs:
+  windows:
+    name: Compilar e empacotar
+    runs-on: windows-2022
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Obter código
+        uses: actions/checkout@v4
+
+      - name: Instalar Qt e MinGW
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          host: windows
+          target: desktop
+          arch: win64_mingw
+          tools: tools_mingw1310 tools_ninja
+          cache: true
+
+      - name: Preparar ferramentas
+        run: |
+          $mingw = Join-Path $env:IQTA_TOOLS "mingw1310_64\bin"
+          $ninja = Join-Path $env:IQTA_TOOLS "Ninja"
+          foreach ($dir in @($mingw, $ninja)) {
+            if (-not (Test-Path $dir)) { throw "Ferramenta não encontrada: $dir" }
+            Add-Content -Path $env:GITHUB_PATH -Value $dir
+          }
+          "MINGW_BIN=$mingw" | Add-Content -Path $env:GITHUB_ENV
+
+      - name: Ler versão do projeto
+        id: version
+        run: |
+          $match = Select-String -Path CMakeLists.txt -Pattern 'VERSION\s+(\d+\.\d+\.\d+)' | Select-Object -First 1
+          if (-not $match) { throw "Versão não encontrada em CMakeLists.txt" }
+          $version = $match.Matches[0].Groups[1].Value
+          if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -ne "v$version") {
+            throw "A tag $($env:GITHUB_REF_NAME) não corresponde à versão do projeto ($version)."
+          }
+          "version=$version" | Add-Content -Path $env:GITHUB_OUTPUT
+          Write-Host "Versão: $version"
+
+      - name: Configurar (Release)
+        # libsodium (pacote MinGW oficial, SHA256 fixado) e QtKeychain (fontes fixadas) são obtidos pelo CMake.
+        run: >
+          cmake --preset release
+          -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++
+          -DGESTAOEQUIPAMENTOS_DEPLOY_QT=OFF
+
+      - name: Compilar
+        run: cmake --build --preset release --target GestaoEquipamentos --parallel
+
+      - name: Preparar pasta de distribuição (windeployqt)
+        run: |
+          $dist = "dist\GestaoEquipamentos"
+          New-Item -ItemType Directory -Force -Path $dist | Out-Null
+          Copy-Item build\release\GestaoEquipamentos.exe $dist
+          $sodium = Get-ChildItem -Path build\release -Recurse -Filter libsodium-26.dll | Select-Object -First 1
+          if (-not $sodium) { throw "libsodium-26.dll não encontrada" }
+          Copy-Item $sodium.FullName $dist
+          windeployqt --release --no-translations --no-system-d3d-compiler --no-opengl-sw --compiler-runtime "$dist\GestaoEquipamentos.exe"
+          if ($LASTEXITCODE -ne 0) { throw "windeployqt falhou" }
+          foreach ($dll in 'libgcc_s_seh-1.dll', 'libstdc++-6.dll', 'libwinpthread-1.dll') {
+            if (-not (Test-Path "$dist\$dll")) { Copy-Item (Join-Path $env:MINGW_BIN $dll) $dist }
+          }
+          if (-not (Test-Path "$dist\sqldrivers\qsqlite.dll")) { throw "Driver SQLite do Qt ausente" }
+          Get-ChildItem -Recurse $dist | Select-Object -ExpandProperty FullName
+
+      - name: Teste de fumaça (abre o assistente e salva uma captura)
+        run: |
+          $exe = Resolve-Path "dist\GestaoEquipamentos\GestaoEquipamentos.exe"
+          $shot = Join-Path $PWD "assistente-windows.png"
+          $p = Start-Process -FilePath $exe -ArgumentList "--page", "assistente", "--screenshot", $shot -PassThru
+          if (-not $p.WaitForExit(60000)) { $p.Kill(); throw "O aplicativo não terminou em 60 s" }
+          if ($p.ExitCode -ne 0) { throw "O aplicativo terminou com código $($p.ExitCode)" }
+          if (-not (Test-Path $shot)) { throw "Captura não gerada" }
+
+      - name: Instalar Inno Setup
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) {
+            choco install innosetup -y --no-progress
+            if ($LASTEXITCODE -ne 0) { throw "Falha ao instalar o Inno Setup" }
+          }
+          if (-not (Test-Path $iscc)) { throw "ISCC.exe não encontrado" }
+          "ISCC=$iscc" | Add-Content -Path $env:GITHUB_ENV
+
+      - name: Gerar instalador
+        run: |
+          & $env:ISCC "/DAppVersion=${{ steps.version.outputs.version }}" "/DSourceDir=..\dist\GestaoEquipamentos" "/DOutputDir=..\dist" installer\GestaoEquipamentos.iss
+          if ($LASTEXITCODE -ne 0) { throw "ISCC falhou" }
+          Get-ChildItem dist\*.exe
+
+      - name: Publicar artefato
+        uses: actions/upload-artifact@v4
+        with:
+          name: GestaoEquipamentos-${{ steps.version.outputs.version }}-Setup
+          path: |
+            dist/GestaoEquipamentos-${{ steps.version.outputs.version }}-Setup.exe
+            assistente-windows.png
+          if-no-files-found: error
+
+      - name: Publicar na página de Releases
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/GestaoEquipamentos-${{ steps.version.outputs.version }}-Setup.exe
+          generate_release_notes: true

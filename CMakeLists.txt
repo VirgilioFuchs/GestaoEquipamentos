@@ -86,6 +86,9 @@ set_target_properties(GestaoEquipamentos PROPERTIES
     MACOSX_BUNDLE ON
 )
 
+# Versão única: a mesma de project(), usada pelo aplicativo e pelo instalador.
+target_compile_definitions(GestaoEquipamentos PRIVATE GESTAOEQUIPAMENTOS_VERSION="${PROJECT_VERSION}")
+
 target_link_libraries(GestaoEquipamentos PRIVATE
     notebook_core
     qrcodegen

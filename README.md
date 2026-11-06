@@ -56,39 +56,50 @@ diferentes.
 
 ## O que você precisa saber para começar
 
-### 1. Experimente sem tocar em dados reais
+### 1. Baixe e instale
 
-Para conhecer o sistema, abra em **modo demonstração**:
+1. Abra a página de [**Releases**](https://github.com/VirgilioFuchs/GestaoEquipamentos/releases) e baixe o arquivo
+   `GestaoEquipamentos-<versão>-Setup.exe` da versão mais recente.
+2. Execute o instalador. Por padrão, ele instala **só para o seu usuário do Windows**, sem pedir senha de
+   administrador (em `%LOCALAPPDATA%\Programs\GestaoEquipamentos`). Na primeira tela é possível escolher instalar
+   para todos os usuários, o que pede elevação.
+3. O instalador cria o atalho no menu Iniciar e, se você marcar a opção, na área de trabalho. Para remover, use
+   **Configurações → Aplicativos** (o desinstalador não apaga os dados).
 
-```bash
-GestaoEquipamentos --demo
-```
+Para atualizar, basta executar o instalador de uma versão mais nova: ele substitui a instalação existente e mantém os
+dados.
 
-Ele cria um banco separado (`demo.sqlite`) com equipamentos, pessoas, locais e movimentações fictícias, e já entra
-com a conta principal de demonstração. O banco real não é tocado.
+> O Windows SmartScreen pode avisar que o instalador é de um editor desconhecido, porque ele ainda não é assinado
+> digitalmente. Clique em **Mais informações → Executar assim mesmo** se o arquivo veio da página oficial de Releases.
 
-### 2. Primeira vez de verdade: criar a conta principal
+### 2. Primeira abertura: o assistente cria a conta principal
 
-Na primeira abertura normal, o aplicativo mostra **"Configuração inicial necessária"**. Isso é esperado: ainda não
-existe nenhuma conta.
+Na primeira abertura, o **assistente de primeira configuração** guia a criação da **conta principal**, a "dona" do
+sistema:
 
-A conta principal é a "dona" do sistema. Ela é criada **uma única vez**, pelo script `admin_account.py`, que fica na
-mesma pasta do programa. É preciso ter Python 3 instalado:
+1. **Boas-vindas** — explica o que vai acontecer.
+2. **Conta principal** — escolha um nome de usuário e uma senha de 8 a 128 caracteres (com confirmação).
+3. **Recuperação de acesso (opcional)** — sugere vincular um aplicativo autenticador (Google Authenticator,
+   Microsoft Authenticator ou similar). Dá para pular e fazer depois.
+4. **Pronto** — em seguida aparece a tela de login.
+
+![Assistente de primeira configuração](docs/img/assistente.png)
+
+A conta principal é criada **uma única vez** por computador e usuário do Windows: depois que ela existe, o assistente
+não aparece mais. Não é preciso instalar Python nem usar o terminal.
+
+> Cada usuário do Windows tem o seu próprio banco. Use sempre o mesmo usuário do sistema para operar o aplicativo.
+
+**Quer só conhecer o sistema?** Abra em **modo demonstração**, que usa um banco separado (`demo.sqlite`) com dados
+fictícios e não toca no banco real:
 
 ```powershell
-py -3 admin_account.py bootstrap        # Linux/macOS: python3 admin_account.py bootstrap
+& "$env:LOCALAPPDATA\Programs\GestaoEquipamentos\GestaoEquipamentos.exe" --demo
 ```
-
-Informe um nome de usuário e uma senha de 8 a 128 caracteres. Depois, volte ao aplicativo, clique em
-**Tentar novamente** e entre com essa conta.
-
-> Rode o script **com o mesmo usuário do Windows** que vai usar o aplicativo: cada usuário do sistema tem o seu
-> próprio banco. Os detalhes e as mensagens de erro mais comuns estão em
-> [Primeira execução](#primeira-execução-criar-a-conta-principal-admin).
 
 ### 3. Proteja a conta principal logo no primeiro acesso
 
-Em **Contas → Vincular Google Authenticator**, leia o QR Code com o celular e **guarde os 10 códigos de recuperação**.
+Se você pulou essa etapa no assistente, vá em **Contas → Vincular Google Authenticator**, leia o QR Code com o celular e **guarde os 10 códigos de recuperação**.
 Eles aparecem uma única vez e são a única forma de recuperar a conta se a senha for esquecida.
 
 ### 4. Crie as contas da equipe
@@ -140,9 +151,11 @@ evento.
 
 - **Uso local, em um computador.** Não há sincronização entre máquinas, e o banco não deve ficar em pasta de rede
   compartilhada.
-- A conta principal ainda é criada por um script em Python. Um assistente dentro do próprio aplicativo e um
-  instalador para Windows estão nos próximos passos.
-- Ainda não há instalador pronto: por enquanto, o programa é compilado a partir do código (veja abaixo).
+- **Instalador só para Windows 64-bit.** No Linux, o programa é compilado a partir do código (veja abaixo).
+- O instalador **ainda não é assinado digitalmente**, então o SmartScreen pode exibir um aviso na primeira execução.
+- Não há atualização automática: para atualizar, baixe e execute o instalador da versão nova.
+- A conta principal é uma só; se a senha for esquecida, a recuperação depende do Authenticator ou dos códigos de
+  recuperação. Por isso, vincule o Authenticator assim que possível.
 
 ---
 
@@ -174,7 +187,9 @@ GestaoEquipamentos/
 │   ├── storage/            # SQLite, migrações e inventário
 │   └── ui/                 # janelas, páginas e diálogos
 ├── tests/                  # suítes Qt Test e teste do script
-├── tools/admin_account.py  # criação e recuperação da conta principal
+├── tools/admin_account.py  # utilitário técnico: criação e recuperação da conta principal pelo terminal
+├── installer/              # script do instalador (Inno Setup)
+├── .github/workflows/      # geração do Setup.exe e publicação na página de Releases
 ├── third_party/            # qrcodegen
 └── docs/PROCESSO.md        # como o sistema funciona por dentro
 ```
@@ -186,7 +201,7 @@ GestaoEquipamentos/
 - Qt 6.4+ (Widgets e SQL com driver QSQLITE; Qt Test só para os testes)
 - CMake 3.21+ e Ninja
 - Compilador C++17 — no Windows, **obrigatoriamente MinGW 64-bit** (o kit MSVC não é suportado)
-- Python 3 (só para o script da conta principal)
+- Python 3 (opcional, só para o utilitário técnico `admin_account.py`)
 - libsodium e QtKeychain: no Windows são baixadas/compiladas automaticamente; no Linux use os pacotes do sistema
 
 Não é preciso servidor de banco, Docker nem credenciais: o banco é um arquivo SQLite local.
@@ -244,12 +259,14 @@ sudo apt install build-essential cmake ninja-build qt6-base-dev libqt6sql6-sqlit
 > `build/release` vazio ou sem DLLs quase sempre significa que esse preset nunca foi compilado (o Qt Creator compila em
 > outra pasta) ou que a compilação parou com erro. Confira o painel **Saída da compilação** / a saída do terminal.
 
-### Primeira execução: criar a conta principal (admin)
+### Utilitário técnico da conta principal (opcional)
 
-Na primeira abertura não existe nenhuma conta, e o aplicativo pede que a conta principal seja configurada.
-Ela é criada **fora da interface**, pelo script `admin_account.py` (Python 3, só biblioteca padrão),
-que conversa com o executável `GestaoEquipamentosAdmin` via JSON pela entrada padrão. Assim a senha nunca
-aparece em argumentos de linha de comando nem no histórico do terminal.
+O caminho normal é o **assistente de primeira configuração**, que aparece na primeira abertura do aplicativo. Para
+quem prefere o terminal (por exemplo, para preparar um computador por script ou recuperar a conta sem abrir a
+interface), continua disponível o `admin_account.py` (Python 3, só biblioteca padrão). Ele conversa com o executável
+`GestaoEquipamentosAdmin` via JSON pela entrada padrão, usando as mesmas regras e o mesmo código de criação da conta
+do assistente; a senha nunca aparece em argumentos de linha de comando nem no histórico do terminal. O script e o
+`GestaoEquipamentosAdmin` **não** fazem parte do instalador: eles ficam na pasta de build.
 
 O jeito mais simples é rodar o script **dentro da pasta de build** (ele é copiado para lá a cada compilação):
 
@@ -314,6 +331,12 @@ Depois disso, abra o `GestaoEquipamentos` e entre com a conta principal. Ela cri
 O modo `--demo` usa um banco separado (`demo.sqlite`) com equipamentos, pessoas e locais fictícios, sem tocar no banco
 real. `--page` aceita `pessoas`, `equipamentos`, `locais`, `logs` ou `logs-filtros`.
 
+Para gerar a captura do assistente de primeira configuração (usa um banco temporário, descartado ao final):
+
+```bash
+./build/dev/GestaoEquipamentos --page assistente --screenshot docs/img/assistente.png
+```
+
 ### Dados e backup
 
 O caminho do banco aparece no rodapé do aplicativo. Ele fica em `QStandardPaths::AppLocalDataLocation`
@@ -325,7 +348,32 @@ O caminho do banco aparece no rodapé do aplicativo. Ele fica em `QStandardPaths
 - O segredo do Authenticator fica no cofre do sistema (Gerenciador de Credenciais no Windows), **não** no SQLite.
 - Nunca envie o banco operacional para o Git. Não use o SQLite em pasta de rede compartilhada.
 
-### Pacote para outro computador (Windows)
+### Instalador para Windows (Inno Setup)
+
+O instalador é gerado automaticamente pelo workflow
+[`.github/workflows/windows-release.yml`](.github/workflows/windows-release.yml): ele instala o Qt 6 com MinGW,
+compila em Release, prepara a pasta com `windeployqt`, abre o assistente como teste de fumaça e gera o
+`Setup.exe` com o [Inno Setup](https://jrsoftware.org/isinfo.php). O arquivo fica disponível como artefato da
+execução e, quando uma tag `v*` é publicada (por exemplo, `v0.1.0`, igual à versão de `project()` no
+`CMakeLists.txt`), é anexado à página de Releases. Também é possível rodar o workflow manualmente pela aba
+**Actions**.
+
+Para gerar localmente, no terminal do kit Qt MinGW e com o Inno Setup 6.3+ instalado:
+
+```powershell
+cmake --preset release -DGESTAOEQUIPAMENTOS_DEPLOY_QT=OFF
+cmake --build --preset release --target GestaoEquipamentos
+mkdir dist\GestaoEquipamentos
+copy build\release\GestaoEquipamentos.exe dist\GestaoEquipamentos\
+copy build\release\libsodium-26.dll dist\GestaoEquipamentos\
+windeployqt --release --no-translations --compiler-runtime dist\GestaoEquipamentos\GestaoEquipamentos.exe
+iscc /DAppVersion=0.1.0 installer\GestaoEquipamentos.iss
+```
+
+O instalador sai em `dist\GestaoEquipamentos-0.1.0-Setup.exe`. Ele não cria contas (isso é feito pelo assistente
+no primeiro uso) e não inclui o utilitário em Python.
+
+### Pacote portátil para outro computador (Windows)
 
 No terminal do kit Qt MinGW:
 
