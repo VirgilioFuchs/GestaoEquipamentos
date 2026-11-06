@@ -1,59 +1,185 @@
 # GestaoEquipamentos
 
 ![Licença: MIT](https://img.shields.io/badge/Licen%C3%A7a-MIT-green.svg)
+![C++17](https://img.shields.io/badge/C%2B%2B-17-blue.svg)
+![Qt 6](https://img.shields.io/badge/Qt-6-41CD52.svg)
+![SQLite](https://img.shields.io/badge/SQLite-local-003B57.svg)
+![Plataformas](https://img.shields.io/badge/plataformas-Windows%20%7C%20Linux-lightgrey.svg)
 
-Aplicação desktop para gestão local de equipamentos (notebooks), com controle de cadastro, movimentações, pessoas, locais, contas de acesso e trilha de auditoria.
+**Controle de empréstimo de notebooks e equipamentos para escolas e setores, com histórico completo de quem
+retirou, quem devolveu, quando e onde.** Aplicação desktop em C++17 e Qt 6. Os dados ficam em um banco SQLite local,
+sem servidor e sem internet.
 
-## O que o projeto faz
+![Tela de equipamentos](docs/img/equipamentos.png)
 
-O sistema registra todo o ciclo operacional dos equipamentos:
+## Introdução
 
-- Cadastro e edição de equipamentos com patrimônio único.
-- Controle de status: disponível, emprestado e manutenção.
-- Registro de retirada, devolução e atualização de local.
-- Cadastro de pessoas responsáveis e locais operacionais.
-- Controle de contas (principal, administradores e comuns) com autenticação.
-- Histórico de eventos com filtros por período, equipamento, local, pessoa, conta e tipo.
+Em muitas escolas e setores, o empréstimo de notebooks ainda é controlado em planilha ou caderno. Com o tempo,
+ninguém sabe ao certo onde está cada equipamento, quem ficou com ele por último ou desde quando ele está em
+manutenção.
 
-## Funcionalidades principais
+O **GestaoEquipamentos** resolve isso com um fluxo simples:
 
-- **Inventário operacional** com ações por status do equipamento.
-- **Movimentações rastreáveis** (quem retirou/devolveu, quando e onde).
-- **Sessão administrativa com expiração** e reautenticação.
-- **Recuperação de conta principal** por autenticador/códigos de recuperação.
-- **Persistência local em SQLite**, com migrações de esquema e logs append-only.
+1. Cada equipamento é cadastrado com um **patrimônio único** e um **local atual**.
+2. Toda **retirada** e **devolução** registra a pessoa responsável, a função (professor ou auxiliar), o local de uso
+   e a data e hora, preenchidas automaticamente.
+3. O inventário mostra, em tempo real, o que está **disponível**, **emprestado** ou **em manutenção**.
+4. Cada ação vira um **evento no histórico (log)**, que não pode ser editado nem apagado depois. Também fica
+   registrado qual conta fez a operação.
+
+Foi pensado para rodar em **um computador do setor**, operado por uma equipe pequena com contas e permissões
+diferentes.
+
+### Destaques
+
+- **Histórico imutável (append-only):** triggers no SQLite impedem alterar ou apagar eventos. Edições ficam
+  registradas como "de → para".
+- **Contas com perfis:** principal, administradores e operadores. Sessões administrativas expiram em 15 minutos.
+- **Segurança de verdade:** senhas com hash Argon2 (libsodium), segundo fator TOTP compatível com o Google
+  Authenticator, códigos de recuperação de uso único e segredos guardados no cofre do sistema operacional
+  (Gerenciador de Credenciais no Windows).
+- **Banco versionado:** migrações automáticas de esquema, com cópia de segurança antes de cada atualização.
+- **Interface em português,** ajustada para telas de notebook (1366×768) e de desktop (1920×1080).
+- **Testes automatizados:** 13 suítes (Qt Test e Python) cobrindo regras de negócio, autenticação, recuperação,
+  linha de comando e interface.
+
+<table>
+  <tr>
+    <td><img src="docs/img/pessoas.png" alt="Cadastro de pessoas"></td>
+    <td><img src="docs/img/logs-filtros.png" alt="Logs com filtros"></td>
+  </tr>
+  <tr>
+    <td align="center">Cadastro de pessoas</td>
+    <td align="center">Histórico com filtros</td>
+  </tr>
+</table>
+
+## O que você precisa saber para começar
+
+### 1. Experimente sem tocar em dados reais
+
+Para conhecer o sistema, abra em **modo demonstração**:
+
+```bash
+GestaoEquipamentos --demo
+```
+
+Ele cria um banco separado (`demo.sqlite`) com equipamentos, pessoas, locais e movimentações fictícias, e já entra
+com a conta principal de demonstração. O banco real não é tocado.
+
+### 2. Primeira vez de verdade: criar a conta principal
+
+Na primeira abertura normal, o aplicativo mostra **"Configuração inicial necessária"**. Isso é esperado: ainda não
+existe nenhuma conta.
+
+A conta principal é a "dona" do sistema. Ela é criada **uma única vez**, pelo script `admin_account.py`, que fica na
+mesma pasta do programa. É preciso ter Python 3 instalado:
+
+```powershell
+py -3 admin_account.py bootstrap        # Linux/macOS: python3 admin_account.py bootstrap
+```
+
+Informe um nome de usuário e uma senha de 8 a 128 caracteres. Depois, volte ao aplicativo, clique em
+**Tentar novamente** e entre com essa conta.
+
+> Rode o script **com o mesmo usuário do Windows** que vai usar o aplicativo: cada usuário do sistema tem o seu
+> próprio banco. Os detalhes e as mensagens de erro mais comuns estão em
+> [Primeira execução](#primeira-execução-criar-a-conta-principal-admin).
+
+### 3. Proteja a conta principal logo no primeiro acesso
+
+Em **Contas → Vincular Google Authenticator**, leia o QR Code com o celular e **guarde os 10 códigos de recuperação**.
+Eles aparecem uma única vez e são a única forma de recuperar a conta se a senha for esquecida.
+
+### 4. Crie as contas da equipe
+
+Também em **Contas**, crie as contas de quem vai operar o sistema. Cada conta é criada com uma senha temporária (trocada
+obrigatoriamente no primeiro acesso) ou pela definição assistida, em que a própria pessoa digita a senha na hora.
+
+| Perfil | O que pode fazer |
+| --- | --- |
+| **Principal** (1) | tudo, inclusive criar administradores e configurar a recuperação |
+| **Administrador** (até 2, além da principal) | criar e gerenciar operadores, inativar pessoas e equipamentos |
+| **Operador** (conta comum) | cadastrar e editar pessoas, locais e equipamentos, registrar retiradas, devoluções e manutenção |
+
+Sessões de principal e administradores **expiram em 15 minutos**, e aí é preciso entrar de novo. As de operador não
+expiram. Contas não são excluídas, só inativadas, para o histórico continuar consistente.
+
+### 5. Cadastre nesta ordem
+
+1. **Locais** — salas, armários e laboratórios. Todo equipamento precisa de um local.
+2. **Pessoas** — quem retira e devolve (professor, com matéria opcional, ou auxiliar). Pessoas **não** são contas de
+   acesso.
+3. **Equipamentos** — patrimônio, nome e local atual.
+
+Também dá para cadastrar uma pessoa ou um local na hora, direto na tela de retirada ou de devolução (botões
+**Adicionar pessoa** e **Adicionar local**).
+
+### 6. Operação do dia a dia
+
+Na tela **Equipamentos**, selecione um item e use as ações da guia:
+
+| Guia | Ações |
+| --- | --- |
+| Disponíveis | Registrar retirada · Enviar à manutenção · Atualizar local |
+| Indisponíveis (emprestados) | Registrar devolução · Atualizar local |
+| Manutenção | Concluir manutenção |
+
+Em **Logs**, consulte tudo o que aconteceu, com filtros por período, equipamento, local, pessoa, conta e tipo de
+evento.
+
+### 7. Onde ficam os dados e como fazer backup
+
+- O caminho do banco aparece no **rodapé** do aplicativo. No Windows, ele fica em `%LOCALAPPDATA%`, fora da pasta do
+  programa. Reinstalar ou atualizar o aplicativo não apaga os dados.
+- **Backup:** feche o aplicativo e copie o arquivo `notebooks.sqlite` (e o `notebooks.sqlite-wal`, se existir).
+- Esqueceu a senha da principal? Use **Recuperar conta principal**, na tela de login, com o Authenticator ou um dos
+  códigos de recuperação.
+
+### Limitações atuais
+
+- **Uso local, em um computador.** Não há sincronização entre máquinas, e o banco não deve ficar em pasta de rede
+  compartilhada.
+- A conta principal ainda é criada por um script em Python. Um assistente dentro do próprio aplicativo e um
+  instalador para Windows estão nos próximos passos.
+- Ainda não há instalador pronto: por enquanto, o programa é compilado a partir do código (veja abaixo).
+
+---
 
 ## Stack e tecnologias
 
-- **Linguagem:** C++17
-- **UI desktop:** Qt 6 (Widgets)
-- **Banco local:** SQLite (via Qt SQL)
-- **Build:** CMake + Ninja
-- **Criptografia/segurança:** libsodium + QtKeychain
-- **Testes:** Qt Test (opcional via BUILD_TESTING)
+| Área | Tecnologia |
+| --- | --- |
+| Linguagem | C++17 |
+| Interface | Qt 6 Widgets, com tema próprio em QSS |
+| Banco | SQLite via Qt SQL (WAL, chaves estrangeiras, triggers) |
+| Segurança | libsodium (Argon2id), TOTP (RFC 6238), QtKeychain |
+| QR Code | qrcodegen (Nayuki), incluído em `third_party/` |
+| Build | CMake 3.21+ e Ninja, com presets `dev` e `release` |
+| Testes | Qt Test e CTest, mais `unittest` para o script Python |
 
 ## Estrutura de pastas
 
 ```text
 GestaoEquipamentos/
-├── CMakeLists.txt
-├── CMakePresets.json
-├── cmake/
-├── resources/
+├── CMakeLists.txt          # alvos: GestaoEquipamentos, GestaoEquipamentosAdmin e testes
+├── CMakePresets.json       # presets dev (Debug + testes) e release
+├── cmake/                  # dependências e implantação no Windows (windeployqt)
+├── resources/              # folha de estilo (QSS) e recursos Qt
 ├── src/
-│   ├── admin/
-│   ├── application/
-│   ├── domain/
-│   ├── security/
-│   ├── storage/
-│   └── ui/
-├── third_party/
-├── tools/
-└── docs/
-    └── PROCESSO.md
+│   ├── admin/              # ferramenta de linha de comando (protocolo JSON)
+│   ├── application/        # regras de negócio: contas, autenticação, pessoas, locais, histórico
+│   ├── domain/             # modelos: equipamento, conta, eventos, filtros
+│   ├── security/           # hash de senha, TOTP, códigos de recuperação, cofre de segredos
+│   ├── storage/            # SQLite, migrações e inventário
+│   └── ui/                 # janelas, páginas e diálogos
+├── tests/                  # suítes Qt Test e teste do script
+├── tools/admin_account.py  # criação e recuperação da conta principal
+├── third_party/            # qrcodegen
+└── docs/PROCESSO.md        # como o sistema funciona por dentro
 ```
 
-## Como compilar e executar
+## Para desenvolvedores: como compilar e executar
 
 ### Pré-requisitos
 
@@ -240,6 +366,8 @@ clang-format -i src/**/*.cpp src/**/*.h tests/*.cpp tests/*.h
 ```
 
 ## Como funciona
+
+O detalhamento por camadas está em [docs/PROCESSO.md](docs/PROCESSO.md).
 
 ```mermaid
 flowchart TD
