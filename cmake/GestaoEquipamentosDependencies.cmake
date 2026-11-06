@@ -88,3 +88,75 @@ function(gestaoequipamentos_copy_runtime_dlls target)
             COMMAND ${CMAKE_COMMAND} -E copy_if_different "${GESTAOEQUIPAMENTOS_SODIUM_DLL}" "$<TARGET_FILE_DIR:${target}>")
     endif()
 endfunction()
+
+
+# ---------------------------------------------------------------------------
+# Implantação no Windows: deixa a pasta de build executável fora do Qt Creator
+#
+# Depois de compilar cada executável da aplicação, copia para a mesma pasta:
+#   - DLLs e plugins do Qt (windeployqt, incluindo sqldrivers/qsqlite);
+#   - runtime do MinGW (libgcc, libstdc++, libwinpthread);
+#   - libsodium (já feito por gestaoequipamentos_copy_runtime_dlls).
+# ---------------------------------------------------------------------------
+if(WIN32)
+    option(GESTAOEQUIPAMENTOS_DEPLOY_QT "Copia DLLs do Qt e do compilador para a pasta de build" ON)
+endif()
+
+if(WIN32 AND GESTAOEQUIPAMENTOS_DEPLOY_QT)
+    if(TARGET Qt6::windeployqt)
+        set(GESTAOEQUIPAMENTOS_WINDEPLOYQT "$<TARGET_FILE:Qt6::windeployqt>")
+    else()
+        # Qt6_DIR = <Qt>/lib/cmake/Qt6 -> <Qt>/bin
+        set(_qt_bin_hints "${Qt6_DIR}/../../../bin")
+        if(TARGET Qt6::qmake)
+            get_target_property(_qmake_location Qt6::qmake IMPORTED_LOCATION)
+            if(_qmake_location)
+                get_filename_component(_qmake_dir "${_qmake_location}" DIRECTORY)
+                list(PREPEND _qt_bin_hints "${_qmake_dir}")
+            endif()
+        endif()
+        find_program(GESTAOEQUIPAMENTOS_WINDEPLOYQT_PROGRAM windeployqt HINTS ${_qt_bin_hints})
+        set(GESTAOEQUIPAMENTOS_WINDEPLOYQT "${GESTAOEQUIPAMENTOS_WINDEPLOYQT_PROGRAM}")
+    endif()
+
+    if(NOT GESTAOEQUIPAMENTOS_WINDEPLOYQT)
+        message(WARNING "windeployqt não encontrado: as DLLs do Qt não serão copiadas para a pasta de build.")
+    endif()
+
+    set(GESTAOEQUIPAMENTOS_COMPILER_DLLS)
+    if(MINGW)
+        get_filename_component(_compiler_dir "${CMAKE_CXX_COMPILER}" DIRECTORY)
+        foreach(_dll libgcc_s_seh-1.dll libstdc++-6.dll libwinpthread-1.dll)
+            if(EXISTS "${_compiler_dir}/${_dll}")
+                list(APPEND GESTAOEQUIPAMENTOS_COMPILER_DLLS "${_compiler_dir}/${_dll}")
+            endif()
+        endforeach()
+    endif()
+endif()
+
+function(gestaoequipamentos_deploy_runtime target)
+    gestaoequipamentos_copy_runtime_dlls(${target})
+
+    if(NOT (WIN32 AND GESTAOEQUIPAMENTOS_DEPLOY_QT))
+        return()
+    endif()
+
+    if(GESTAOEQUIPAMENTOS_WINDEPLOYQT)
+        add_custom_command(TARGET ${target} POST_BUILD
+            COMMAND "${GESTAOEQUIPAMENTOS_WINDEPLOYQT}"
+                --no-translations
+                --no-system-d3d-compiler
+                --no-opengl-sw
+                "$<TARGET_FILE:${target}>"
+            COMMENT "Copiando DLLs do Qt para ${target}"
+            VERBATIM
+        )
+    endif()
+
+    foreach(_dll IN LISTS GESTAOEQUIPAMENTOS_COMPILER_DLLS)
+        add_custom_command(TARGET ${target} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different "${_dll}" "$<TARGET_FILE_DIR:${target}>"
+            VERBATIM
+        )
+    endforeach()
+endfunction()

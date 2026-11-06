@@ -91,7 +91,7 @@ target_link_libraries(GestaoEquipamentos PRIVATE
     Qt6::Widgets
 )
 
-gestaoequipamentos_copy_runtime_dlls(GestaoEquipamentos)
+gestaoequipamentos_deploy_runtime(GestaoEquipamentos)
 
 # ---------------------------------------------------------------------------
 # Ferramenta administrativa de linha de comando
@@ -107,7 +107,16 @@ set_target_properties(GestaoEquipamentosAdmin PROPERTIES
 
 target_link_libraries(GestaoEquipamentosAdmin PRIVATE notebook_core)
 
-gestaoequipamentos_copy_runtime_dlls(GestaoEquipamentosAdmin)
+gestaoequipamentos_deploy_runtime(GestaoEquipamentosAdmin)
+
+# O script de configuração da conta principal fica ao lado do executável administrativo,
+# assim ele é encontrado sem --helper em qualquer pasta de build (inclusive a do Qt Creator).
+add_custom_command(TARGET GestaoEquipamentosAdmin POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_SOURCE_DIR}/tools/admin_account.py"
+        "$<TARGET_FILE_DIR:GestaoEquipamentosAdmin>"
+    VERBATIM
+)
 
 # ---------------------------------------------------------------------------
 # Testes
