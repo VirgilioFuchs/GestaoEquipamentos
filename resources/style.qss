@@ -1,8 +1,7 @@
 QWidget { font-family: 'Segoe UI', 'Inter', 'DejaVu Sans'; font-size: 13px; color: #23354a; }
 QMainWindow, QStackedWidget { background: #f3f6fa; }
 QFrame#sidebar { background: #12253b; }
-QLabel#brand { color: white; font-size: 22px; font-weight: 700; }
-QLabel#navSubtitle { color: #a8c0d6; font-size: 11px; }
+QLabel#brand { color: white; font-size: 19px; font-weight: 700; }
 QLabel#navCaption { color: #7f99b4; font-size: 9px; letter-spacing: 1px; }
 QLabel#local { color: #83cdb8; font-size: 11px; }
 QLabel#title { font-size: 27px; font-weight: 700; color: #15263c; }

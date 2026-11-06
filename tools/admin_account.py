@@ -16,7 +16,7 @@ from pathlib import Path
 
 PROTOCOL = 1
 POLICY = "A senha deve ter de 8 a 128 caracteres. Frases longas são recomendadas."
-HELPER_NOT_FOUND = "Utilitário GestaoEquipamentosAdmin não encontrado. Compile o alvo GestaoEquipamentosAdmin ou informe --helper com o caminho do executável."
+HELPER_NOT_FOUND = "Utilitário GestaoEquipamentosAdmin não encontrado. Informe --helper com o caminho do executável."
 NO_HIDDEN_INPUT = "Não foi possível ocultar a senha neste terminal. Execute em um terminal interativo."
 MISMATCH = "As senhas não coincidem. Confira a confirmação."
 HELPER_NAMES = ("GestaoEquipamentosAdmin.exe", "GestaoEquipamentosAdmin")
@@ -26,22 +26,6 @@ INVALID_METHOD = "Opção inválida. Digite 1 ou 2."
 NO_REPLY = "O GestaoEquipamentosAdmin não respondeu a tempo. Nada foi confirmado."
 BAD_REPLY = "Resposta inválida do GestaoEquipamentosAdmin."
 REPLY_TIMEOUT = 120
-# Códigos de saída do Windows quando o executável nem chega a iniciar.
-WINDOWS_LOADER_ERRORS = {
-    0xC0000135: "faltam DLLs (Qt, MinGW ou libsodium) ao lado do executável",
-    0xC0000139: "uma DLL encontrada é de outra versão (ponto de entrada ausente)",
-    0xC000007B: "mistura de DLLs 32/64 bits ou de compiladores diferentes (MinGW x MSVC)",
-}
-MISSING_DLLS_HINT = ("Recompile com o CMake atualizado (ele copia as DLLs para a pasta de build) "
-                     "ou rode windeployqt no executável.")
-
-
-def loader_error(returncode):
-    """Mensagem para falhas do carregador do Windows, ou None."""
-    reason = WINDOWS_LOADER_ERRORS.get(returncode & 0xFFFFFFFF) if returncode else None
-    if reason:
-        return f"O GestaoEquipamentosAdmin não iniciou: {reason}. {MISSING_DLLS_HINT}"
-    return None
 
 
 class ScriptError(Exception):
@@ -51,74 +35,20 @@ class ScriptError(Exception):
         self.code = code
 
 
-def _helper_candidates_from(root):
-    roots = [root]
-    if root.name == "tools":
-        roots.append(root.parent / "build")
-    else:
-        roots.append(root / "build")
-    for base in roots:
-        if not base.exists():
-            continue
-        # Caminhos diretos dos presets comuns.
-        for sub in (base, base / "release", base / "dev"):
-            for name in HELPER_NAMES:
-                candidate = sub / name
-                if candidate.is_file():
-                    yield candidate
-        # Pastas geradas pelo Qt Creator (ex.: build/Desktop_Qt_...-Release/)
-        for name in HELPER_NAMES:
-            for candidate in base.rglob(name):
-                if candidate.is_file():
-                    yield candidate
-
-
-def _pick_newest(paths):
-    unique = {}
-    for path in paths:
-        unique[path.resolve()] = path
-    if not unique:
-        return None
-    return max(unique.values(), key=lambda p: p.stat().st_mtime)
-
-
 def find_helper(explicit):
     if explicit:
         candidate = Path(explicit)
         if candidate.is_file():
             return candidate
         raise ScriptError(HELPER_NOT_FOUND, 2)
-
     here = Path(__file__).resolve().parent
-    cwd = Path.cwd()
-    candidates = list(_helper_candidates_from(here)) + list(_helper_candidates_from(cwd))
-    picked = _pick_newest(candidates)
-    if picked:
-        return picked
+    # Ao lado do script (pacote instalado em bin/) ou nas pastas dos presets de build.
+    for folder in (here, here.parent / "build" / "release", here.parent / "build" / "dev"):
+        for name in HELPER_NAMES:
+            candidate = folder / name
+            if candidate.is_file():
+                return candidate
     raise ScriptError(HELPER_NOT_FOUND, 2)
-
-
-def validate_helper(helper, test_profile):
-    command = [str(helper), "--version"]
-    if test_profile:
-        command.append("--test-profile")
-    try:
-        result = subprocess.run(command, capture_output=True, shell=False, timeout=10)
-    except (subprocess.SubprocessError, OSError):
-        raise ScriptError("Não foi possível executar o GestaoEquipamentosAdmin informado.", 2) from None
-
-    message = loader_error(result.returncode)
-    if message:
-        raise ScriptError(message, 2)
-    out = result.stdout.decode("utf-8", errors="replace").strip()
-    err = result.stderr.decode("utf-8", errors="replace").strip()
-    if result.returncode != 0 or "protocolo" not in out.lower():
-        hint = ""
-        if out:
-            hint += f"\nstdout: {out[:240]}"
-        if err:
-            hint += f"\nstderr: {err[:240]}"
-        raise ScriptError("O executável informado não é um GestaoEquipamentosAdmin válido." + hint, 2)
 
 
 def ask_secret(prompt):
@@ -147,22 +77,10 @@ def call_helper(helper, test_profile, request):
         command.append("--test-profile")
     result = subprocess.run(command, input=json.dumps(request).encode("utf-8"),
                             capture_output=True, shell=False, timeout=120)
-    message = loader_error(result.returncode)
-    if message:
-        raise ScriptError(message, 2)
-    stdout = result.stdout.decode("utf-8", errors="replace")
-    stderr = result.stderr.decode("utf-8", errors="replace")
     try:
-        reply = json.loads(stdout)
+        reply = json.loads(result.stdout.decode("utf-8"))
     except ValueError:
-        details = []
-        if stdout.strip():
-            details.append(f"stdout: {stdout.strip()[:240]}")
-        if stderr.strip():
-            details.append(f"stderr: {stderr.strip()[:240]}")
-        if not details:
-            details.append("o processo não retornou JSON")
-        raise ScriptError(BAD_REPLY + " (" + " | ".join(details) + ")", result.returncode or 1) from None
+        raise ScriptError(BAD_REPLY, result.returncode or 1) from None
     return result.returncode, reply
 
 
@@ -194,11 +112,7 @@ class HelperSession:
         except queue.Empty:
             raise ScriptError(NO_REPLY, 1) from None
         if line is None:
-            try:
-                returncode = self.process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                returncode = None
-            raise ScriptError(loader_error(returncode) or BAD_REPLY, 1)
+            raise ScriptError(BAD_REPLY, 1)
         try:
             return json.loads(line.decode("utf-8"))
         except ValueError:
@@ -220,8 +134,6 @@ class HelperSession:
 
 def bootstrap(args):
     helper = find_helper(args.helper)
-    if not args.helper:
-        validate_helper(helper, args.test_profile)
     username = input("Nome de usuário da conta principal: ").strip()
     password = ask_new_password()
     request = {"protocol": PROTOCOL, "action": "bootstrap", "username": username, "password": password}
@@ -243,8 +155,6 @@ def ask_method():
 
 def recover(args):
     helper = find_helper(args.helper)
-    if not args.helper:
-        validate_helper(helper, args.test_profile)
     username = input("Nome de usuário da conta principal: ").strip()
     method = ask_method()
     proof = ask_secret("Código: ")

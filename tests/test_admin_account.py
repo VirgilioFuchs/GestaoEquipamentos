@@ -158,13 +158,6 @@ class AdminAccountTests(unittest.TestCase):
         self.assertIn("A conta principal já foi configurada.", out)
         self.assertNotIn("Abra o GestaoEquipamentos", out)
 
-    def test_missing_dlls_on_windows_explained(self):
-        # 0xC0000135: o carregador do Windows não achou as DLLs; o processo não imprime nada.
-        result, _, _, _, err = self.run_main(["bootstrap", "--helper", self.helper], [PASSWORD, PASSWORD], b"", 0xC0000135)
-        self.assertEqual(result, 2)
-        self.assertIn("faltam DLLs", err)
-        self.assertNotIn(admin_account.BAD_REPLY, err)
-
     def test_recover_verifies_before_asking_password(self):
         for choice, method in (("1", "authenticator"), ("2", "backup_code")):
             session = FakeHelper([VERIFIED, RECOVERED])
