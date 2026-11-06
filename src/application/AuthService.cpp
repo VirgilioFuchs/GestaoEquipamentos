@@ -79,7 +79,8 @@ PreparedPassword AuthService::preparePassword(const QByteArray &utf8) const {
     return PreparedPassword(hasher.hash(utf8));
 }
 
-qint64 AuthService::bootstrapPrincipal(const QString &username, const PreparedPassword &password) {
+qint64 AuthService::bootstrapPrincipal(const QString &username, const PreparedPassword &password,
+                                       const QString &origin) {
     const QString canonical = canonicalUsername(username);
     qint64 accountId = 0;
     database.transaction([&] {
@@ -106,7 +107,7 @@ qint64 AuthService::bootstrapPrincipal(const QString &username, const PreparedPa
         config.addBindValue(accountId);
         run(config);
         database.appendEvent({"account", accountId, std::nullopt, "Conta principal criada",
-                              "Conta principal " + canonical + " criada pelo utilitário local.",
+                              "Conta principal " + canonical + " criada pelo " + origin + ".",
                               Actor{accountId, canonical},
                               merge({LocalDatabase::change("username", QJsonValue::Null, canonical),
                                      LocalDatabase::change("role", QJsonValue::Null, QStringLiteral("principal")),

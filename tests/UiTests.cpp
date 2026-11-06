@@ -3,6 +3,7 @@
 #include <QSqlQuery>
 #include "ui/HistoryFormat.h"
 #include "ui/AccessDialogs.h"
+#include "ui/FirstRunWizard.h"
 #include "ui/RecoveryDialogs.h"
 #include "ui/AccountsPage.h"
 #include "ui/LogsPage.h"
@@ -2758,35 +2759,140 @@ private slots:
         QVERIFY2(inactivated.contains("Situação: Ativa → Inativa"), qPrintable(inactivated));
         QVERIFY(window.grab().save("ui-account-logs.png"));
     }
-    void bootstrapPending() {
+    void firstRunWizardCreatesPrincipal() {
         QTemporaryDir temp;
         QVERIFY(temp.isValid());
-        TestContext ctx(temp.filePath("pending.sqlite"), false);
-        BootstrapPendingDialog pending(ctx.auth);
-        pending.show();
-        QVERIFY(QTest::qWaitForWindowExposed(&pending));
-        auto *title = pending.findChild<QLabel *>("dialogTitle");
-        QVERIFY(title);
-        QCOMPARE(title->text(), QString("Configuração inicial necessária"));
-        QVERIFY(pending.findChildren<QLineEdit *>().isEmpty());
-        auto *retry = button(pending, "Tentar novamente");
-        QVERIFY(retry && button(pending, "Sair"));
-        retry->click();
-        QVERIFY(pending.isVisible());
-        QCOMPARE(pending.result(), int(QDialog::Rejected));
-        QVERIFY(pending.grab().save("ui-bootstrap-pending.png"));
-        ctx.auth.bootstrapPrincipal(TestPrincipal, ctx.auth.preparePassword(TestPassword));
-        retry->click();
-        QCOMPARE(pending.result(), int(QDialog::Accepted));
-        LoginDialog login(ctx.auth, ctx.recovery);
-        login.show();
-        QVERIFY(QTest::qWaitForWindowExposed(&login));
-        for (auto *field : login.findChildren<QLineEdit *>())
-            QVERIFY(field->text().isEmpty());
-        BootstrapPendingDialog closing(ctx.auth);
-        closing.show();
-        button(closing, "Sair")->click();
-        QCOMPARE(closing.result(), int(QDialog::Rejected));
+        TestContext ctx(temp.filePath("wizard.sqlite"), false);
+        QVERIFY(!ctx.auth.hasPrincipal());
+        FirstRunWizard wizard(ctx.auth, ctx.recovery);
+        int launched = 0;
+        wizard.setEnrollmentLauncher([&](RecoveryService &recovery, const Session &session, QWidget *) {
+            ++launched;
+            QVERIFY(session.isValid());
+            QCOMPARE(session.role(), AccountRole::Principal);
+            auto draft = recovery.beginEnrollment(session);
+            const QByteArray enrollmentKey = secretOf(*draft);
+            recovery.confirmEnrollment(session, *draft, totp::code(enrollmentKey, totp::counterAt(ctx.clock.nowUtc())));
+        });
+        wizard.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&wizard));
+        QCOMPARE(wizard.step(), FirstRunWizard::Welcome);
+        auto *title = wizard.findChild<QStackedWidget *>()->currentWidget()->findChild<QLabel *>("dialogTitle");
+        QCOMPARE(title->text(), QString("Bem-vindo ao Gestão de Equipamentos"));
+        QVERIFY(button(wizard, "Sair"));
+        button(wizard, "Começar")->click();
+        QCOMPARE(wizard.step(), FirstRunWizard::Account);
+        auto *username = wizard.findChild<QLineEdit *>("setupUsername");
+        auto *password = wizard.findChild<QLineEdit *>("setupPassword");
+        auto *confirm = wizard.findChild<QLineEdit *>("setupConfirm");
+        auto *error = wizard.findChild<QLabel *>("errorText");
+        QVERIFY(username && password && confirm && error);
+        QCOMPARE(password->echoMode(), QLineEdit::Password);
+        auto *create = button(wizard, "Criar conta");
+        QVERIFY(create);
+
+        username->setText("Coordenacao");
+        password->setText("senha-forte-1");
+        confirm->setText("senha-diferente");
+        create->click();
+        QCOMPARE(wizard.step(), FirstRunWizard::Account);
+        QCOMPARE(error->text(), QString("A confirmação não confere com a senha."));
+        QVERIFY(!ctx.auth.hasPrincipal());
+
+        password->setText("curta");
+        confirm->setText("curta");
+        create->click();
+        QCOMPARE(error->text(), QString("A senha deve ter de 8 a 128 caracteres."));
+        QVERIFY(!ctx.auth.hasPrincipal());
+
+        username->setText("x");
+        password->setText("senha-forte-1");
+        confirm->setText("senha-forte-1");
+        create->click();
+        QVERIFY(error->text().startsWith("O nome de usuário deve ter de 3 a 64 caracteres"));
+        QVERIFY(!ctx.auth.hasPrincipal());
+
+        username->setText("Coordenacao");
+        password->setText("senha-forte-1");
+        confirm->setText("senha-forte-1");
+        create->click();
+        QCOMPARE(wizard.step(), FirstRunWizard::Authenticator);
+        QVERIFY(ctx.auth.hasPrincipal());
+        QCOMPARE(wizard.createdUsername(), QString("coordenacao"));
+        QVERIFY(password->text().isEmpty() && confirm->text().isEmpty());
+        QVERIFY(!button(wizard, "Sair")->isVisible());
+        QVERIFY(!button(wizard, "Voltar")->isVisible());
+        QSqlQuery event(ctx.database.connection());
+        QVERIFY(event.exec("SELECT details FROM events WHERE action='Conta principal criada'"));
+        QVERIFY(event.next());
+        QVERIFY2(event.value(0).toString().contains("assistente de primeira configuração"),
+                 qPrintable(event.value(0).toString()));
+
+        QVERIFY(button(wizard, "Pular"));
+        button(wizard, "Vincular agora")->click();
+        QCOMPARE(launched, 1);
+        QVERIFY(!button(wizard, "Vincular agora")->isEnabled());
+        QVERIFY(wizard.findChild<QLabel *>("feedback")->text().startsWith("Authenticator vinculado"));
+        button(wizard, "Próximo")->click();
+        QCOMPARE(wizard.step(), FirstRunWizard::Done);
+        QVERIFY(wizard.grab().save("ui-first-run-wizard.png"));
+        button(wizard, "Ir para o login")->click();
+        QCOMPARE(wizard.result(), int(QDialog::Accepted));
+
+        Session session = ctx.auth.login("coordenacao", "senha-forte-1");
+        QCOMPARE(session.role(), AccountRole::Principal);
+        QVERIFY(ctx.recovery.status(session).configured);
+    }
+    void firstRunWizardSkipsAuthenticatorAndCanQuit() {
+        QTemporaryDir temp;
+        QVERIFY(temp.isValid());
+        TestContext ctx(temp.filePath("wizard-skip.sqlite"), false);
+        {
+            FirstRunWizard leaving(ctx.auth, ctx.recovery);
+            leaving.show();
+            button(leaving, "Sair")->click();
+            QCOMPARE(leaving.result(), int(QDialog::Rejected));
+            QVERIFY(!ctx.auth.hasPrincipal());
+        }
+        FirstRunWizard wizard(ctx.auth, ctx.recovery);
+        wizard.setEnrollmentLauncher([](RecoveryService &, const Session &, QWidget *) { QFAIL("não deveria abrir"); });
+        wizard.show();
+        button(wizard, "Começar")->click();
+        button(wizard, "Voltar")->click();
+        QCOMPARE(wizard.step(), FirstRunWizard::Welcome);
+        button(wizard, "Começar")->click();
+        wizard.findChild<QLineEdit *>("setupUsername")->setText(TestPrincipal);
+        wizard.findChild<QLineEdit *>("setupPassword")->setText(QString::fromUtf8(TestPassword));
+        wizard.findChild<QLineEdit *>("setupConfirm")->setText(QString::fromUtf8(TestPassword));
+        button(wizard, "Criar conta")->click();
+        QCOMPARE(wizard.step(), FirstRunWizard::Authenticator);
+        button(wizard, "Pular")->click();
+        QCOMPARE(wizard.step(), FirstRunWizard::Done);
+        // Fechar depois de criada a conta conduz ao login, nunca de volta ao assistente.
+        wizard.reject();
+        QCOMPARE(wizard.result(), int(QDialog::Accepted));
+        Session session = ctx.auth.login(TestPrincipal, TestPassword);
+        QVERIFY(!ctx.recovery.status(session).configured);
+    }
+    void firstRunWizardOnlyOnce() {
+        QTemporaryDir temp;
+        QVERIFY(temp.isValid());
+        TestContext ctx(temp.filePath("wizard-once.sqlite"));
+        QVERIFY(ctx.auth.hasPrincipal());
+        FirstRunWizard wizard(ctx.auth, ctx.recovery);
+        wizard.show();
+        button(wizard, "Começar")->click();
+        wizard.findChild<QLineEdit *>("setupUsername")->setText("outra.principal");
+        wizard.findChild<QLineEdit *>("setupPassword")->setText("senha-forte-2");
+        wizard.findChild<QLineEdit *>("setupConfirm")->setText("senha-forte-2");
+        button(wizard, "Criar conta")->click();
+        QCOMPARE(wizard.step(), FirstRunWizard::Done);
+        QVERIFY(wizard.createdUsername().isEmpty());
+        QSqlQuery count(ctx.database.connection());
+        QVERIFY(count.exec("SELECT COUNT(*) FROM accounts"));
+        QVERIFY(count.next());
+        QCOMPARE(count.value(0).toInt(), 1);
+        QVERIFY_THROWS_EXCEPTION(AuthError, ctx.auth.login("outra.principal", "senha-forte-2"));
     }
     void logout() {
         QTemporaryDir temp;

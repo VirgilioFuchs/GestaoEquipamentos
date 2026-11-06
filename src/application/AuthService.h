@@ -105,7 +105,10 @@ public:
     static QString canonicalUsername(const QString &username);
     // Sem SQL: pode rodar fora da thread proprietária da conexão.
     PreparedPassword preparePassword(const QByteArray &utf8) const;
-    qint64 bootstrapPrincipal(const QString &username, const PreparedPassword &password);
+    // Cria a conta principal uma única vez (recusa com already_initialized se já existir conta).
+    // origin completa a descrição do evento de auditoria ("criada pelo ...").
+    qint64 bootstrapPrincipal(const QString &username, const PreparedPassword &password,
+                              const QString &origin = QStringLiteral("utilitário local"));
     bool hasPrincipal() const;
     std::optional<Actor> authenticate(const QString &username, const QByteArray &utf8) const;
     std::shared_ptr<LoginAttempt> prepareLogin(const QString &username, QByteArray password) const;

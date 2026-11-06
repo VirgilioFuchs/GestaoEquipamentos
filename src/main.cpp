@@ -4,6 +4,8 @@
 #include <QScreen>
 #include <QStyle>
 #include <QStyleHints>
+#include <QLineEdit>
+#include <QTemporaryDir>
 #include <QThread>
 #include <QTimer>
 #include "application/DemoSeed.h"
@@ -12,6 +14,7 @@
 #include "security/SecretVault.h"
 #include "ui/AccessDialogs.h"
 #include "ui/AccountDialogs.h"
+#include "ui/FirstRunWizard.h"
 #include "ui/MainWindow.h"
 #include <exception>
 #include <functional>
@@ -40,13 +43,36 @@ int main(int argc, char *argv[]) {
     const int screenshotIndex = args.indexOf("--screenshot");
     const int pageIndex = args.indexOf("--page");
     const QString page = pageIndex >= 0 ? args.value(pageIndex + 1) : QStringLiteral("equipamentos");
-    if (page != "pessoas" && page != "equipamentos" && page != "locais" && page != "logs" && page != "logs-filtros") {
+    if (page != "assistente" && page != "pessoas" && page != "equipamentos" && page != "locais" && page != "logs" && page != "logs-filtros") {
         qCritical().noquote() << QString("Página desconhecida: %1.").arg(page);
         return 1;
     }
     if (pageIndex >= 0 && screenshotIndex < 0) {
         qCritical().noquote() << "A opção --page exige --screenshot.";
         return 1;
+    }
+    // Captura do assistente de primeira configuração para a documentação: banco temporário descartável.
+    if (page == "assistente" && screenshotIndex >= 0) {
+        QTemporaryDir temp;
+        if (!temp.isValid() || screenshotIndex + 1 >= args.size())
+            return 1;
+        LocalDatabase database(temp.filePath("assistente.sqlite"));
+        PasswordHasher hasher;
+        AuthService auth(database, hasher);
+        KeychainSecretVault vault(vaultServiceName(DataProfile::Demo));
+        RecoveryService recovery(database, auth, vault);
+        FirstRunWizard wizard(auth, recovery);
+        wizard.showStep(FirstRunWizard::Account);
+        wizard.findChild<QLineEdit *>("setupUsername")->setText("coordenacao");
+        wizard.findChild<QLineEdit *>("setupPassword")->setText("exemplo-de-senha");
+        wizard.findChild<QLineEdit *>("setupConfirm")->setText("exemplo-de-senha");
+        wizard.show();
+        wizard.findChild<QLineEdit *>("setupUsername")->deselect();
+        const auto output = args[screenshotIndex + 1];
+        QTimer::singleShot(700, &wizard, [&wizard, output] {
+            QCoreApplication::exit(wizard.grab().save(output) ? 0 : 2);
+        });
+        return app.exec();
     }
     const auto failure = [&](const QString &title, const std::exception &e) {
         if (screenshotIndex >= 0)
@@ -82,9 +108,10 @@ int main(int argc, char *argv[]) {
                 return true;
             }
             for (;;) {
-                while (!auth.hasPrincipal()) {
-                    BootstrapPendingDialog pending(auth);
-                    if (pending.exec() != QDialog::Accepted)
+                // Primeiro uso: o assistente cria a conta principal uma única vez; com principal, nunca aparece.
+                if (!auth.hasPrincipal()) {
+                    FirstRunWizard wizard(auth, recovery);
+                    if (wizard.exec() != QDialog::Accepted || !auth.hasPrincipal())
                         return false;
                 }
                 LoginDialog login(auth, recovery);

@@ -61,6 +61,7 @@ set(GESTAOEQUIPAMENTOS_UI_SOURCES
     src/ui/LogsPage.cpp
     src/ui/HistoryFormat.cpp
     src/ui/AccessDialogs.cpp
+    src/ui/FirstRunWizard.cpp
     src/ui/AccountDialogs.cpp
     src/ui/AccountsPage.cpp
     src/ui/QrCodeView.cpp

@@ -6,12 +6,6 @@ class QLabel;
 class QLineEdit;
 class QPushButton;
 
-// Banco sem principal: aceita somente quando hasPrincipal() passar a ser verdadeiro.
-class BootstrapPendingDialog : public QDialog {
-public:
-    explicit BootstrapPendingDialog(AuthService &auth, QWidget *parent = nullptr);
-};
-
 class LoginDialog : public QDialog {
 public:
     // Reauthentication não oferece "Recuperar conta principal".

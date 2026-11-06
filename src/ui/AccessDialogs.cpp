@@ -10,34 +10,6 @@ const QString LoginFailure =
 const QString SessionExpired = QStringLiteral("Sessão administrativa expirada. Entre novamente para continuar.");
 } // namespace
 
-BootstrapPendingDialog::BootstrapPendingDialog(AuthService &auth, QWidget *parent) : QDialog(parent) {
-    setWindowTitle("GestaoEquipamentos");
-    setMinimumWidth(430);
-    auto *layout = new QVBoxLayout(this);
-    layout->setSpacing(14);
-    auto *title = new QLabel("Configuração inicial necessária");
-    title->setObjectName("dialogTitle");
-    layout->addWidget(title);
-    auto *body = new QLabel("Peça ao responsável que execute o utilitário local de configuração para criar a conta "
-                            "principal. Depois, selecione Tentar novamente.");
-    body->setWordWrap(true);
-    layout->addWidget(body);
-    auto *actions = new QHBoxLayout;
-    actions->addStretch();
-    auto *quit = new QPushButton("Sair");
-    auto *retry = new QPushButton("Tentar novamente");
-    retry->setObjectName("primary");
-    retry->setDefault(true);
-    actions->addWidget(quit);
-    actions->addWidget(retry);
-    layout->addLayout(actions);
-    connect(quit, &QPushButton::clicked, this, &QDialog::reject);
-    connect(retry, &QPushButton::clicked, this, [this, &auth] {
-        if (auth.hasPrincipal())
-            accept();
-    });
-}
-
 LoginDialog::LoginDialog(AuthService &auth, RecoveryService &recovery, Mode mode, QWidget *parent)
     : QDialog(parent), auth(auth), recovery(recovery) {
     setWindowTitle("GestaoEquipamentos");
